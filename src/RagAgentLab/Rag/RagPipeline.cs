@@ -73,7 +73,7 @@ public sealed class RagPipeline : IRagPipeline
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(question);
 
-        var queryVector = await _embeddingService.EmbedAsync(question, cancellationToken);
+        var queryVector = await _embeddingService.EmbedQueryAsync(question, cancellationToken);
         var hits = await _vectorStore.SearchAsync(queryVector, topK ?? _ragOptions.TopK, cancellationToken);
 
         _logger.LogDebug("Retrieved {Count} chunk(s) for '{Question}'.", hits.Count, question);
@@ -132,8 +132,8 @@ public sealed class RagPipeline : IRagPipeline
 
         foreach (var hit in hits)
         {
-            builder.AppendLine($"--- source: {hit.Chunk.SourceName} (chunk {hit.Chunk.ChunkIndex}) ---");
-            builder.AppendLine(hit.Chunk.Text);
+            builder.AppendLine($"--- source: {hit.Chunk.SourceName} ---");
+            builder.AppendLine(hit.Chunk.ToContextualText());
             builder.AppendLine();
         }
 

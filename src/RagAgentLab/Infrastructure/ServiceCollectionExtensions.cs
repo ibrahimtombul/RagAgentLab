@@ -1,13 +1,17 @@
 using System.ClientModel;
+using System.ClientModel.Primitives;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using OpenAI;
+using RagAgentLab.Agents;
 using RagAgentLab.Configuration;
 using RagAgentLab.Embeddings;
 using RagAgentLab.Ollama;
 using RagAgentLab.Rag;
+using RagAgentLab.Tools;
 
 namespace RagAgentLab.Infrastructure;
 
@@ -17,11 +21,18 @@ namespace RagAgentLab.Infrastructure;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
-    /// <summary>Registers configuration, the Ollama client, Semantic Kernel and the RAG layer.</summary>
+    /// <summary>Registers configuration, the Ollama client, Semantic Kernel, the RAG layer and the agent.</summary>
     /// <param name="services">The service collection to add to.</param>
     /// <param name="configuration">Application configuration (appsettings.json + environment variables).</param>
     /// <returns>The same collection, for chaining.</returns>
-    public static IServiceCollection AddRagAgentLab(this IServiceCollection services, IConfiguration configuration)
+    /// <param name="loggerFactory">
+    /// Used by the pieces that must be constructed eagerly here (the Semantic Kernel client),
+    /// which therefore cannot take an injected logger.
+    /// </param>
+    public static IServiceCollection AddRagAgentLab(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        ILoggerFactory loggerFactory)
     {
         services
             .AddOptions<OllamaOptions>()
@@ -47,13 +58,18 @@ public static class ServiceCollectionExtensions
             httpClient.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
         });
 
-        AddSemanticKernel(services, configuration);
+        AddSemanticKernel(services, configuration, loggerFactory);
 
         services.AddSingleton<IEmbeddingService, SemanticKernelEmbeddingService>();
         // Singleton: the in-memory store IS the database for this demo, so it must outlive a scope.
         services.AddSingleton<IVectorStore, InMemoryVectorStore>();
         services.AddSingleton<KnowledgeBaseIngestor>();
         services.AddSingleton<IRagPipeline, RagPipeline>();
+
+        // Semantic Kernel discovers filters through DI; this one prints and records every
+        // tool call the agent makes.
+        services.AddSingleton<IFunctionInvocationFilter, ToolCallTraceFilter>();
+        services.AddSingleton<IAgent, HrAssistantAgent>();
 
         return services;
     }
@@ -68,9 +84,15 @@ public static class ServiceCollectionExtensions
     /// the SDK requires a non-empty credential.
     /// </para>
     /// </summary>
-    private static void AddSemanticKernel(IServiceCollection services, IConfiguration configuration)
+    private static void AddSemanticKernel(
+        IServiceCollection services,
+        IConfiguration configuration,
+        ILoggerFactory loggerFactory)
     {
         var options = configuration.GetSection(OllamaOptions.SectionName).Get<OllamaOptions>() ?? new OllamaOptions();
+
+        var compatibilityHandler = new OllamaCompatibilityHandler(
+            loggerFactory.CreateLogger<OllamaCompatibilityHandler>());
 
         var openAiClient = new OpenAIClient(
             new ApiKeyCredential("ollama-does-not-check-this"),
@@ -78,6 +100,10 @@ public static class ServiceCollectionExtensions
             {
                 Endpoint = new Uri(new Uri(options.Endpoint), "/v1"),
                 NetworkTimeout = TimeSpan.FromSeconds(options.TimeoutSeconds),
+                Transport = new HttpClientPipelineTransport(new HttpClient(compatibilityHandler)
+                {
+                    Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds),
+                }),
             });
 
         var kernelBuilder = services.AddKernel();
@@ -89,5 +115,12 @@ public static class ServiceCollectionExtensions
 #pragma warning disable SKEXP0010
         kernelBuilder.AddOpenAIEmbeddingGenerator(options.EmbeddingModel, openAiClient);
 #pragma warning restore SKEXP0010
+
+        // Tools the agent may call. The plugin name becomes the prefix the model sees
+        // (for example "hr.search_hr_policy"), and constructor dependencies such as
+        // IRagPipeline are resolved from this same container.
+        kernelBuilder.Plugins.AddFromType<HrPolicyTool>("hr");
+        kernelBuilder.Plugins.AddFromType<CalculatorTool>("calculator");
+        kernelBuilder.Plugins.AddFromType<WorkdayTool>("workday");
     }
 }

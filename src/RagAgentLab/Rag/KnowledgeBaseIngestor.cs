@@ -62,16 +62,21 @@ public sealed class KnowledgeBaseIngestor
             var text = await File.ReadAllTextAsync(file, cancellationToken);
             var fileName = Path.GetFileName(file);
 
+            // The first non-empty line is treated as the document title and travels with
+            // every chunk cut from this document.
+            var title = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .FirstOrDefault() ?? fileName;
+
             var pieces = TextChunker.Split(text, _options.ChunkSize, _options.ChunkOverlap);
             chunks.AddRange(pieces.Select((piece, index) =>
-                new DocumentChunk($"{fileName}#{index}", fileName, index, piece)));
+                new DocumentChunk($"{fileName}#{index}", fileName, title, index, piece)));
 
             _logger.LogDebug("{File}: {Chunks} chunk(s).", fileName, pieces.Count);
         }
 
         // 2) Embed all chunks, then 3) store them.
-        var vectors = await _embeddingService.EmbedBatchAsync(
-            chunks.Select(c => c.Text).ToArray(), cancellationToken);
+        var vectors = await _embeddingService.EmbedDocumentsAsync(
+            chunks.Select(c => c.ToContextualText()).ToArray(), cancellationToken);
 
         var records = chunks
             .Zip(vectors, (chunk, vector) => new VectorRecord(chunk, vector))

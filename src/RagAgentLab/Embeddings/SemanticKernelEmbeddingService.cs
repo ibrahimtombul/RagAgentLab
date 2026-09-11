@@ -28,20 +28,25 @@ public sealed class SemanticKernelEmbeddingService : IEmbeddingService
     }
 
     /// <inheritdoc />
-    public async Task<ReadOnlyMemory<float>> EmbedAsync(string text, CancellationToken cancellationToken = default)
+    public async Task<ReadOnlyMemory<float>> EmbedQueryAsync(
+        string query,
+        CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(text);
-        return await _generator.GenerateVectorAsync(text, cancellationToken: cancellationToken);
+        ArgumentException.ThrowIfNullOrWhiteSpace(query);
+
+        return await _generator.GenerateVectorAsync(
+            _options.QueryEmbeddingPrefix + query, cancellationToken: cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<ReadOnlyMemory<float>>> EmbedBatchAsync(
-        IReadOnlyList<string> texts,
+    public async Task<IReadOnlyList<ReadOnlyMemory<float>>> EmbedDocumentsAsync(
+        IReadOnlyList<string> documents,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(texts);
+        ArgumentNullException.ThrowIfNull(documents);
 
-        var vectors = new List<ReadOnlyMemory<float>>(texts.Count);
+        var texts = documents.Select(d => _options.DocumentEmbeddingPrefix + d).ToArray();
+        var vectors = new List<ReadOnlyMemory<float>>(texts.Length);
 
         // Sent in batches rather than one request per chunk: fewer round-trips, and the
         // batch size stays configurable because a bigger batch means more memory on the

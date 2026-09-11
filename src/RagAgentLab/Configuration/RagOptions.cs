@@ -23,4 +23,19 @@ public sealed class RagOptions
 
     /// <summary>How many chunks are embedded per request to the model server.</summary>
     public int EmbeddingBatchSize { get; set; } = 16;
+
+    /// <summary>
+    /// Prefix prepended to every document before it is embedded.
+    /// <para>
+    /// nomic-embed-text is trained with task prefixes and expects stored passages and search
+    /// queries to be marked differently. Leaving them off measurably degrades ranking, because
+    /// every text ends up in the same narrow region of the vector space. Set both prefixes to
+    /// an empty string for models that do not use this convention (for example
+    /// all-minilm or OpenAI's text-embedding-3).
+    /// </para>
+    /// </summary>
+    public string DocumentEmbeddingPrefix { get; set; } = "search_document: ";
+
+    /// <summary>Prefix prepended to the user's question before it is embedded.</summary>
+    public string QueryEmbeddingPrefix { get; set; } = "search_query: ";
 }

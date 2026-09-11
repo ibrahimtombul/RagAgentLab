@@ -13,7 +13,7 @@ namespace RagAgentLab.Rag;
 /// <para>
 /// Splitting happens on paragraph boundaries first and only falls back to a hard character
 /// cut for paragraphs that are longer than the target size on their own, so chunks stay
-/// semantically coherent. <paramref name="chunkSize"/> is therefore a target rather than a
+/// semantically coherent. The chunk size is therefore a target rather than a
 /// hard cap: a coherent paragraph that overshoots it slightly is preferred over a paragraph
 /// cut in half. For the same reason a chunk is never closed while it is still shorter than
 /// the overlap, which would otherwise produce near-empty chunks out of document headings.

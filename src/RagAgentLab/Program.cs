@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using RagAgentLab.Demos;
 using RagAgentLab.Infrastructure;
 using RagAgentLab.Ollama;
@@ -8,7 +9,8 @@ using RagAgentLab.Ollama;
 // only picks which demo to run:
 //   dotnet run --project src/RagAgentLab -- connect   (stage 1: connectivity check)
 //   dotnet run --project src/RagAgentLab -- chunks    (stage 2: chunking only, no LLM needed)
-//   dotnet run --project src/RagAgentLab -- rag       (stage 2: RAG pipeline, default)
+//   dotnet run --project src/RagAgentLab -- rag       (stage 2: RAG pipeline)
+//   dotnet run --project src/RagAgentLab -- agent     (stage 3: tool-calling agent, default)
 
 var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
 {
@@ -18,10 +20,12 @@ var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
     ContentRootPath = AppContext.BaseDirectory,
 });
 
-builder.Services.AddRagAgentLab(builder.Configuration);
+builder.Services.AddRagAgentLab(builder.Configuration, LoggerFactory.Create(logging =>
+    logging.AddConfiguration(builder.Configuration.GetSection("Logging")).AddConsole()));
 builder.Services.AddSingleton<ConnectivityDemo>();
 builder.Services.AddSingleton<RagDemo>();
 builder.Services.AddSingleton<ChunkInspectionDemo>();
+builder.Services.AddSingleton<AgentDemo>();
 
 using var host = builder.Build();
 
@@ -33,7 +37,7 @@ Console.CancelKeyPress += (_, eventArgs) =>
     cancellation.Cancel();
 };
 
-var demo = args.FirstOrDefault()?.ToLowerInvariant() ?? "rag";
+var demo = args.FirstOrDefault()?.ToLowerInvariant() ?? "agent";
 
 try
 {
@@ -47,12 +51,18 @@ try
             await host.Services.GetRequiredService<RagDemo>().RunAsync(cancellation.Token);
             break;
 
+        case "agent":
+            // An optional second argument asks a single question instead of the scripted set.
+            await host.Services.GetRequiredService<AgentDemo>()
+                .RunAsync(args.Skip(1).FirstOrDefault(), cancellation.Token);
+            break;
+
         case "chunks":
             await host.Services.GetRequiredService<ChunkInspectionDemo>().RunAsync(cancellation.Token);
             break;
 
         default:
-            ConsoleUi.Error($"Unknown demo '{demo}'. Available: connect, chunks, rag");
+            ConsoleUi.Error($"Unknown demo '{demo}'. Available: connect, chunks, rag, agent");
             return 2;
     }
 
