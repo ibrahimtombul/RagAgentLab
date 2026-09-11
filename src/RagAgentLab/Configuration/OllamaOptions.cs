@@ -25,4 +25,7 @@ public sealed class OllamaOptions
 
     /// <summary>Sampling temperature. Kept low because RAG answers should stay close to the sources.</summary>
     public double Temperature { get; set; } = 0.2;
+
+    /// <summary>Upper bound on generated tokens, so a runaway local model cannot stall the demo.</summary>
+    public int MaxOutputTokens { get; set; } = 800;
 }

@@ -1,0 +1,36 @@
+KUZEY YAZILIM A.Ş. - UZAKTAN VE HİBRİT ÇALIŞMA POLİTİKASI
+Doküman No: IK-014 | Yürürlük Tarihi: 01.03.2025 | Versiyon: 2.0
+
+1. ÇALIŞMA MODELİ
+Kuzey Yazılım A.Ş. hibrit çalışma modeli uygular. Tüm tam zamanlı çalışanlar haftada en az 2 gün
+ofiste bulunmakla yükümlüdür. Ofis günleri Salı ve Perşembe olarak sabitlenmiştir; ekip bazında farklı
+günler belirlenmesi departman direktörünün yazılı onayına bağlıdır.
+Yeni işe başlayan çalışanlar, ilk 8 hafta boyunca haftada 4 gün ofiste çalışır. Bu süre oryantasyon
+ve mentorluk sürecinin bir parçası olarak değerlendirilir.
+
+2. ÇEKİRDEK SAATLER
+Çalışma saatleri esnektir; ancak tüm çalışanların 10:00 - 16:00 arasındaki çekirdek saatlerde erişilebilir
+olması beklenir. Günlük çalışma süresi 8 saattir. Çekirdek saatler dışında planlanacak toplantılar için
+katılımcıların önceden onayı alınır.
+
+3. YURT DIŞINDAN ÇALIŞMA
+Çalışanlar, takvim yılı içinde en fazla 20 iş günü yurt dışından çalışabilir. Bu talep en az 15 gün
+öncesinden İK'ya bildirilir ve vergi/mevzuat değerlendirmesi için Mali İşler biriminin onayına sunulur.
+Yurt dışından çalışma süresince çalışanın Türkiye saat diliminde çekirdek saatlere uyum sağlaması beklenir.
+Yaptırımlar nedeniyle şirket VPN'inin çalışmadığı ülkelerden erişim talep edilemez.
+
+4. EKİPMAN VE EV OFİS DESTEĞİ
+Şirket her çalışana dizüstü bilgisayar, harici monitör ve kulaklık sağlar. Dizüstü bilgisayarlar 3 yılda
+bir yenilenir. Uzaktan çalışan personele bir defaya mahsus 8.000 TL tutarında ev ofis kurulum desteği
+ödenir; bu destek işe başlangıcından itibaren ilk 3 ay içinde talep edilmelidir.
+Ayrıca aylık 750 TL internet ve elektrik katkı ödemesi bordroya yansıtılır.
+
+5. BİLGİ GÜVENLİĞİ
+Uzaktan çalışma sırasında şirket verilerine yalnızca şirket tarafından sağlanan cihazlar üzerinden ve
+VPN bağlantısı ile erişilir. Kişisel cihazlara müşteri verisi indirilmesi kesinlikle yasaktır.
+Halka açık Wi-Fi ağlarında VPN kullanımı zorunludur. Cihaz kaybı veya çalınması durumunda 2 saat içinde
+bilgi.guvenligi@kuzeyyazilim.example adresine bildirim yapılmalıdır.
+
+6. POLİTİKAYA UYMAMA
+Ofis günü yükümlülüğüne üç ay üst üste uyulmaması durumunda yönetici ile değerlendirme görüşmesi yapılır.
+Tekrarı hâlinde çalışanın hibrit çalışma hakkı geçici olarak askıya alınabilir.

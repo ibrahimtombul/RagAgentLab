@@ -1,0 +1,93 @@
+using System.ClientModel;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.SemanticKernel;
+using OpenAI;
+using RagAgentLab.Configuration;
+using RagAgentLab.Embeddings;
+using RagAgentLab.Ollama;
+using RagAgentLab.Rag;
+
+namespace RagAgentLab.Infrastructure;
+
+/// <summary>
+/// Composition root: every service the application needs is registered here, so
+/// <c>Program.cs</c> stays a few lines long and the wiring is reviewable in one place.
+/// </summary>
+public static class ServiceCollectionExtensions
+{
+    /// <summary>Registers configuration, the Ollama client, Semantic Kernel and the RAG layer.</summary>
+    /// <param name="services">The service collection to add to.</param>
+    /// <param name="configuration">Application configuration (appsettings.json + environment variables).</param>
+    /// <returns>The same collection, for chaining.</returns>
+    public static IServiceCollection AddRagAgentLab(this IServiceCollection services, IConfiguration configuration)
+    {
+        services
+            .AddOptions<OllamaOptions>()
+            .Bind(configuration.GetSection(OllamaOptions.SectionName))
+            .Validate(o => Uri.IsWellFormedUriString(o.Endpoint, UriKind.Absolute),
+                "Ollama:Endpoint must be an absolute URI.")
+            .Validate(o => !string.IsNullOrWhiteSpace(o.ChatModel), "Ollama:ChatModel must be set.")
+            .Validate(o => !string.IsNullOrWhiteSpace(o.EmbeddingModel), "Ollama:EmbeddingModel must be set.")
+            .ValidateOnStart();
+
+        services
+            .AddOptions<RagOptions>()
+            .Bind(configuration.GetSection(RagOptions.SectionName))
+            .Validate(o => o.ChunkOverlap < o.ChunkSize, "Rag:ChunkOverlap must be smaller than Rag:ChunkSize.")
+            .Validate(o => o.TopK > 0, "Rag:TopK must be greater than zero.")
+            .ValidateOnStart();
+
+        // Typed HttpClient for the few things the SDK does not cover (health check, model list).
+        services.AddHttpClient<IOllamaClient, OllamaClient>(static (serviceProvider, httpClient) =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<OllamaOptions>>().Value;
+            httpClient.BaseAddress = new Uri(options.Endpoint);
+            httpClient.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+        });
+
+        AddSemanticKernel(services, configuration);
+
+        services.AddSingleton<IEmbeddingService, SemanticKernelEmbeddingService>();
+        // Singleton: the in-memory store IS the database for this demo, so it must outlive a scope.
+        services.AddSingleton<IVectorStore, InMemoryVectorStore>();
+        services.AddSingleton<KnowledgeBaseIngestor>();
+        services.AddSingleton<IRagPipeline, RagPipeline>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers Semantic Kernel with its official OpenAI connector pointed at the local
+    /// Ollama server.
+    /// <para>
+    /// Ollama serves an OpenAI-compatible API under <c>/v1</c>, so no custom connector is
+    /// needed: a single <see cref="OpenAIClient"/> with a rewritten endpoint drives both chat
+    /// completion and embeddings. The API key is a placeholder because Ollama ignores it, but
+    /// the SDK requires a non-empty credential.
+    /// </para>
+    /// </summary>
+    private static void AddSemanticKernel(IServiceCollection services, IConfiguration configuration)
+    {
+        var options = configuration.GetSection(OllamaOptions.SectionName).Get<OllamaOptions>() ?? new OllamaOptions();
+
+        var openAiClient = new OpenAIClient(
+            new ApiKeyCredential("ollama-does-not-check-this"),
+            new OpenAIClientOptions
+            {
+                Endpoint = new Uri(new Uri(options.Endpoint), "/v1"),
+                NetworkTimeout = TimeSpan.FromSeconds(options.TimeoutSeconds),
+            });
+
+        var kernelBuilder = services.AddKernel();
+        kernelBuilder.AddOpenAIChatCompletion(options.ChatModel, openAiClient);
+
+        // SKEXP0010: Semantic Kernel still marks the embedding-generator registration as
+        // experimental (it moved to Microsoft.Extensions.AI recently). Suppressed here only,
+        // rather than project-wide, so any other experimental API still fails the build.
+#pragma warning disable SKEXP0010
+        kernelBuilder.AddOpenAIEmbeddingGenerator(options.EmbeddingModel, openAiClient);
+#pragma warning restore SKEXP0010
+    }
+}

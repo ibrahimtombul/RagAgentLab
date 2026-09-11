@@ -20,4 +20,7 @@ public sealed class RagOptions
 
     /// <summary>How many of the most similar chunks are injected into the prompt.</summary>
     public int TopK { get; set; } = 3;
+
+    /// <summary>How many chunks are embedded per request to the model server.</summary>
+    public int EmbeddingBatchSize { get; set; } = 16;
 }
