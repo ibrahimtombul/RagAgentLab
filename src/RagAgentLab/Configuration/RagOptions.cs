@@ -38,4 +38,10 @@ public sealed class RagOptions
 
     /// <summary>Prefix prepended to the user's question before it is embedded.</summary>
     public string QueryEmbeddingPrefix { get; set; } = "search_query: ";
+
+    /// <summary>
+    /// Which <c>IVectorStore</c> implementation to use: <c>InMemory</c> (default, no
+    /// infrastructure required) or <c>Qdrant</c> (needs the container from docker-compose.yml).
+    /// </summary>
+    public VectorStoreKind VectorStore { get; set; } = VectorStoreKind.InMemory;
 }

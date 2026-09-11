@@ -60,9 +60,12 @@ public static class ServiceCollectionExtensions
 
         AddSemanticKernel(services, configuration, loggerFactory);
 
+        services
+            .AddOptions<QdrantOptions>()
+            .Bind(configuration.GetSection(QdrantOptions.SectionName));
+
         services.AddSingleton<IEmbeddingService, SemanticKernelEmbeddingService>();
-        // Singleton: the in-memory store IS the database for this demo, so it must outlive a scope.
-        services.AddSingleton<IVectorStore, InMemoryVectorStore>();
+        AddVectorStore(services, configuration);
         services.AddSingleton<KnowledgeBaseIngestor>();
         services.AddSingleton<IRagPipeline, RagPipeline>();
 
@@ -72,6 +75,32 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAgent, HrAssistantAgent>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Registers the configured <see cref="IVectorStore"/> implementation.
+    /// <para>
+    /// Singleton in both cases: the in-memory store <em>is</em> the database for the demo and
+    /// must outlive any scope, and the Qdrant client is designed to be long-lived and shared.
+    /// This method is the only place that knows which implementation is in use.
+    /// </para>
+    /// </summary>
+    private static void AddVectorStore(IServiceCollection services, IConfiguration configuration)
+    {
+        var kind = configuration.GetSection(RagOptions.SectionName).Get<RagOptions>()?.VectorStore
+                   ?? VectorStoreKind.InMemory;
+
+        switch (kind)
+        {
+            case VectorStoreKind.Qdrant:
+                services.AddSingleton<IVectorStore, QdrantVectorStore>();
+                break;
+
+            case VectorStoreKind.InMemory:
+            default:
+                services.AddSingleton<IVectorStore, InMemoryVectorStore>();
+                break;
+        }
     }
 
     /// <summary>

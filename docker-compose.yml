@@ -1,0 +1,14 @@
+# Optional: only needed when Rag:VectorStore is set to "Qdrant" in appsettings.json.
+# The default configuration uses the in-memory store and requires no containers at all.
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    container_name: ragagentlab-qdrant
+    ports:
+      - "6333:6333"   # REST API and web dashboard: http://localhost:6333/dashboard
+      - "6334:6334"   # gRPC API, which the .NET client uses
+    volumes:
+      - qdrant-storage:/qdrant/storage
+
+volumes:
+  qdrant-storage:

@@ -30,6 +30,14 @@ public static class VectorMath
             return 0d;
         }
 
+        // A zero vector has no direction, so the formula divides by zero and TensorPrimitives
+        // returns NaN. NaN would sort unpredictably in the ranking, so it is turned into the
+        // "no similarity at all" score instead.
+        if (TensorPrimitives.Norm(left.Span) == 0f || TensorPrimitives.Norm(right.Span) == 0f)
+        {
+            return 0d;
+        }
+
         // TensorPrimitives is the SIMD-accelerated BCL implementation of the formula above.
         return TensorPrimitives.CosineSimilarity(left.Span, right.Span);
     }

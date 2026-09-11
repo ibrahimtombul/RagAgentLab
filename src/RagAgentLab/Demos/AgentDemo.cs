@@ -23,8 +23,8 @@ public sealed class AgentDemo
          "calculator only"),
         ("Yurt içinde 4 günlük bir iş seyahatinde toplam yemek harcırahım ne kadar olur?",
          "policy lookup, then calculator"),
-        ("15 Haziran 2026'da izne çıkmak istiyorum. Talebi en geç hangi tarihte girmem gerekir?",
-         "policy lookup, then business-day maths"),
+        ("Bugün ayın kaçı ve haftanın hangi günü?",
+         "today's date"),
     ];
 
     private readonly KnowledgeBaseIngestor _ingestor;

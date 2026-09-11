@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      # Warnings are treated as errors in CI only: a warning should not block local
+      # experimentation, but it must not reach the default branch either. This also enforces
+      # the XML documentation requirement the project builds with.
+      - name: Build
+        run: dotnet build --no-restore --configuration Release -warnaserror
+
+      # The test suite covers the deterministic parts of the system - chunking, cosine
+      # similarity, the vector store and the agent's tools - so CI needs no model server.
+      - name: Test
+        run: dotnet test --no-build --configuration Release --verbosity normal

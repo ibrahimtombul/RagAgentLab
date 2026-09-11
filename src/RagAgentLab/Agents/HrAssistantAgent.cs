@@ -26,8 +26,14 @@ namespace RagAgentLab.Agents;
 /// </summary>
 public sealed class HrAssistantAgent : IAgent
 {
-    // Written for a small local model: short, imperative, one rule per line. Long prompts
-    // measurably degrade tool selection at this model size.
+    // Written for a small local model: short, imperative, one rule per line.
+    //
+    // Prompt length is not a free parameter here. Adding a single four-line rule about the
+    // order in which tools should be chained made qwen2.5:7b stop calling tools altogether on
+    // one of the demo questions — the endpoint returned an empty message with
+    // finish_reason "stop" instead of a tool call. Guidance about how a specific tool should
+    // be used therefore lives in that tool's own description, which is part of the schema the
+    // model is given, rather than being piled into this prompt.
     private const string SystemPrompt =
         """
         You are the HR assistant of Kuzey Yazılım A.Ş.
@@ -89,10 +95,17 @@ public sealed class HrAssistantAgent : IAgent
         stopwatch.Stop();
         _logger.LogDebug("Agent answered after {Steps} tool call(s).", trace.Steps.Count);
 
-        return new AgentResult(
-            question,
-            reply.Content?.Trim() ?? string.Empty,
-            trace.Steps,
-            stopwatch.Elapsed);
+        var answer = reply.Content?.Trim() ?? string.Empty;
+
+        // A local model occasionally returns an empty message with no tool call at all
+        // (finish_reason "stop" and a null content). Returning that as the answer would
+        // surface as a blank line and look like a bug in this code, so the dead end is named.
+        if (answer.Length == 0 && trace.Steps.Count == 0)
+        {
+            answer = "[the model returned an empty response and called no tool - " +
+                     "try rephrasing the question, or use a larger model]";
+        }
+
+        return new AgentResult(question, answer, trace.Steps, stopwatch.Elapsed);
     }
 }

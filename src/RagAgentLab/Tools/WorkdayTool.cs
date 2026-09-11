@@ -33,7 +33,9 @@ public sealed class WorkdayTool
     [KernelFunction("add_business_days")]
     [Description("Adds business days (weekends excluded) to a date and returns the resulting date. " +
                  "Pass a negative number to go backwards in time, for example to find the deadline " +
-                 "for a request that must be filed a number of working days in advance.")]
+                 "for a request that must be filed a number of working days in advance. " +
+                 "If the number of days comes from a company rule, look that rule up with " +
+                 "search_hr_policy first instead of assuming a number.")]
     public string AddBusinessDays(
         [Description("Start date in yyyy-MM-dd format, for example '2026-10-15'.")] string startDate,
         [Description("Number of business days to add; negative to subtract.")] int businessDays)
