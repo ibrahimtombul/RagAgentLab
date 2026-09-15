@@ -27,9 +27,6 @@ public partial class Chat : IDisposable
         "Eğitim bütçem ne kadar ve bir sonraki yıla devreder mi?",
     ];
 
-    /// <summary>Prefix that turns a chat message into a write to the knowledge base.</summary>
-    private const string TeachCommand = "/ogren";
-
     /// <summary>Shown in the menu so the teach command has a concrete example to copy.</summary>
     private const string TeachExample = "/ogren Şirket aracı talepleri Filo birimine yapılır.";
 
@@ -120,9 +117,9 @@ public partial class Chat : IDisposable
         var message = question.Trim();
         _input = string.Empty;
 
-        if (message.StartsWith(TeachCommand, StringComparison.OrdinalIgnoreCase))
+        if (TeachCommand.TryParse(message, out var note))
         {
-            await TeachAsync(message[TeachCommand.Length..].Trim());
+            await TeachAsync(message, note);
             return;
         }
 
@@ -215,13 +212,15 @@ public partial class Chat : IDisposable
     }
 
     /// <summary>Writes a note into the knowledge base and reports the result in the transcript.</summary>
-    private async Task TeachAsync(string note)
+    /// <param name="typed">The command exactly as typed, shown back in the transcript.</param>
+    /// <param name="note">The text to remember.</param>
+    private async Task TeachAsync(string typed, string note)
     {
         _lastTurnFailed = false;
         _turns.Add(new ChatTurn
         {
             Role = ConversationRole.User,
-            Content = $"{TeachCommand} {note}",
+            Content = typed,
             ExcludeFromHistory = true,
         });
 
