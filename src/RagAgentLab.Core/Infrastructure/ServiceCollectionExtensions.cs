@@ -11,6 +11,7 @@ using RagAgentLab.Configuration;
 using RagAgentLab.Embeddings;
 using RagAgentLab.Ollama;
 using RagAgentLab.Rag;
+using RagAgentLab.Shop;
 using RagAgentLab.Tools;
 
 namespace RagAgentLab.Infrastructure;
@@ -62,6 +63,13 @@ public static class ServiceCollectionExtensions
         services
             .AddOptions<SqliteOptions>()
             .Bind(configuration.GetSection(SqliteOptions.SectionName));
+
+        services
+            .AddOptions<ShopOptions>()
+            .Bind(configuration.GetSection(ShopOptions.SectionName));
+
+        services.AddSingleton<ShopDatabase>();
+        services.AddSingleton<ShopQueries>();
 
         services.AddSingleton<IEmbeddingService, SemanticKernelEmbeddingService>();
         AddVectorStore(services, configuration);
@@ -159,5 +167,6 @@ public static class ServiceCollectionExtensions
         kernelBuilder.Plugins.AddFromType<CalculatorTool>("calculator");
         kernelBuilder.Plugins.AddFromType<WorkdayTool>("workday");
         kernelBuilder.Plugins.AddFromType<MinimumWageTool>("wage");
+        kernelBuilder.Plugins.AddFromType<ShopTool>("shop");
     }
 }

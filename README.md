@@ -228,6 +228,7 @@ src/RagAgentLab.Core/
 ├── Ollama/          HTTP client for the model server (+ OpenAI-shaped DTOs)
 ├── Embeddings/      embedding service, IVectorStore, in-memory and Qdrant implementations
 ├── Rag/             chunking, ingestion, retrieval, the RAG pipeline
+├── Shop/            the sample operational database and its queries
 ├── Agents/          the tool-calling agent and its trace filter
 ├── Tools/           tools the agent may call: policy search, calculator, workday maths
 ├── Demos/           one runnable demo per stage
@@ -550,6 +551,65 @@ A year-to-amount table is a lookup, and a lookup should be exact. It now sits be
 `get_minimum_wage`, beside the calculator, for the same reason: embedding similarity is the wrong
 instrument for it. The same argument applies to stock levels, price lists and anything else whose
 rows differ only by their values.
+
+### Prose belongs in the corpus, facts belong behind a query
+
+The wage table made the narrow version of this argument. The wider version is the reason the
+project also carries a small e-commerce database — products, three warehouses, stock per warehouse
+and four months of sales — sitting behind three tools the agent may call.
+
+The rule that decides where something goes:
+
+> Is the answer **written in a sentence somewhere**, or does it have to be **counted, filtered or
+> computed**? Written → the corpus. Counted → a query.
+
+An HR policy is prose: the answer exists as a passage, and finding it approximately is exactly
+right. A stock level is not. It changes daily, it has to be exact, and the interesting questions
+are aggregations — *"the three best sellers of the last month"* is not a passage that exists
+anywhere to be found. Embedding one row per product and hoping cosine similarity picks the right
+one is the wage-table mistake at a larger scale.
+
+| Data | Where it belongs |
+|---|---|
+| Policies, FAQs, product descriptions, reviews, support threads, contracts | The vector store |
+| Stock, prices, orders, totals, anything aggregated | A query tool |
+| Semantic product search — *"yazlık, nefes alan, koyu renkli gömlek"* | The vector store, over the descriptions |
+
+### The model chooses the question; it does not write the SQL
+
+[`ShopTool`](src/RagAgentLab.Core/Tools/ShopTool.cs) exposes three functions — `get_stock`,
+`top_selling_products` and `sales_total` — and every query behind them is hand-written and
+parameterised in [`ShopQueries`](src/RagAgentLab.Core/Shop/ShopQueries.cs). The model picks which
+question to ask and with what arguments. It never composes SQL.
+
+That is a deliberate stopping point rather than a step not yet taken. Text-to-SQL, where the model
+writes the query, needs a read-only connection, an allow-list of tables, a statement timeout, a row
+cap and validation of whatever comes back — and then it still needs a model that can write correct
+SQL. This one has been measured failing to chain two tool calls; a JOIN with a date filter is not
+within reach. Parameterised tools give up flexibility and get back a blast radius of "wrong answer"
+instead of "arbitrary query against the schema".
+
+Routing, observed:
+
+| Question | Tool chosen | Answer |
+|---|---|---|
+| "ELK-001 ürününden kaç adet stok var?" | `shop.get_stock` | 105 adet, three warehouses listed |
+| "Son 30 günde en çok satan 3 ürün hangileri?" | `shop.top_selling_products` | Seramik Kupa Seti, Bluetooth Hoparlör, Koşu Ayakkabısı |
+| "Bu ay toplam ciromuz ne kadar?" | `shop.sales_total` | 462 units, 506.518,00 TL |
+| "Yurt dışından yılda kaç iş günü çalışabilirim?" | `hr.search_hr_policy` | unchanged — the corpus still answers policy questions |
+
+Two things were measured while adding this.
+
+**The tool count went from six to nine, and the existing questions still route correctly.** That was
+the risk worth checking, given that this model's tool selection has already proved fragile; it was
+checked rather than assumed.
+
+**The date lesson repeated itself.** `top_selling_products` first required explicit dates, and asked
+about "the last 30 days" the model supplied a range out of its training data and the query came back
+empty — exactly what `get_minimum_wage` had done with the year. Both dates are now optional and
+default to the last thirty days ending today. The tool runs on a machine with a clock; the model
+does not, and asking it to discover the date through another call is asking for the one thing it
+cannot reliably do.
 
 ### Pipeline or agent?
 
