@@ -341,13 +341,13 @@ html, body {
 }
 
 /* ---- status ring ----
-   Blue steady while idle, a yellow arc chasing round while the agent works, red when
-   something failed. The colour is carried on `color` so the two circles can both use
-   currentColor and only one property changes per state. */
+   Blue while idle, a yellow arc chasing round while the agent works, red when something
+   failed. The colour is carried on `color` so every layer can reference currentColor and only
+   one property changes per state. */
 .led {
     flex-shrink: 0;
-    width: 30px;
-    height: 30px;
+    width: 34px;
+    height: 34px;
     display: grid;
     place-items: center;
 }
@@ -361,37 +361,56 @@ html, body {
 
 .led circle {
     fill: none;
-    stroke: currentColor;
-    stroke-width: 2.5;
-    stroke-linecap: round;
+    stroke-width: 7;
 }
 
-.led-track { opacity: 0.18; }
+/* The lamp glow, kept off the band so it cannot blur the shading. */
+.led-halo {
+    stroke: currentColor;
+    opacity: 0.6;
+    filter: blur(5px);
+}
 
+/* Blurred, offset copy of the band: gives the ring somewhere to sit. */
+.led-shadow {
+    stroke: rgba(0, 0, 0, 0.55);
+    transform: translateY(1.2px);
+    filter: blur(1.6px);
+}
+
+/* Diagonal light over the band, so the ring is lit from one side rather than evenly. */
+.led-sheen { stroke-linecap: butt; }
+
+/* The travelling hot spot. Narrower than the band so the shaded edges stay visible under it. */
 .led-arc {
-    /* r = 10, so the circumference is 2πr ≈ 62.83 */
-    stroke-dasharray: 62.83;
+    stroke: currentColor;
+    stroke-width: 4.2;
+    stroke-linecap: round;
+    /* r = 13, so the circumference is 2πr ≈ 81.68 */
+    stroke-dasharray: 81.68;
     stroke-dashoffset: 0;
-    filter: drop-shadow(0 0 4px currentColor);
+    opacity: 0;
+    filter: drop-shadow(0 0 5px currentColor);
     transition: stroke 0.25s ease;
 }
 
-.led-idle { color: #2f9bdc; }
-.led-idle .led-arc { animation: led-breathe 3.2s ease-in-out infinite; }
+.led-idle { color: #3aa0e0; }
+.led-idle .led-halo { animation: led-breathe 3.6s ease-in-out infinite; }
 
-.led-processing { color: #e0a32e; }
+.led-processing { color: #e8ab2b; }
 .led-processing .led-arc {
-    stroke-dasharray: 16 47;             /* roughly a quarter of the ring */
-    transform-origin: 14px 14px;
+    stroke-dasharray: 21 61;             /* roughly a quarter of the ring */
+    transform-origin: 20px 20px;
+    opacity: 1;
     animation: led-spin 0.9s linear infinite, led-flicker 0.28s steps(2, end) infinite;
 }
 
-.led-error { color: #dc4b45; }
-.led-error .led-arc { animation: led-alarm 0.9s ease-in-out infinite; }
+.led-error { color: #e05149; }
+.led-error .led-halo { animation: led-alarm 0.9s ease-in-out infinite; }
 
 @keyframes led-breathe {
-    0%, 100% { opacity: 0.55; }
-    50%      { opacity: 1; }
+    0%, 100% { opacity: 0.38; }
+    50%      { opacity: 0.8; }
 }
 
 @keyframes led-spin {
@@ -401,23 +420,24 @@ html, body {
 /* The game's LED flickers rather than glowing evenly when the android is working hard. */
 @keyframes led-flicker {
     0%, 100% { opacity: 1; }
-    50%      { opacity: 0.72; }
+    50%      { opacity: 0.68; }
 }
 
 @keyframes led-alarm {
     0%, 100% { opacity: 1; }
-    45%      { opacity: 0.25; }
+    45%      { opacity: 0.4; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .led-idle .led-arc,
-    .led-processing .led-arc,
-    .led-error .led-arc {
+    .led-idle .led-halo,
+    .led-error .led-halo,
+    .led-processing .led-arc {
         animation: none;
     }
 
-    .led-processing .led-arc { stroke-dasharray: 16 47; }
+    .led-processing .led-arc { stroke-dasharray: 21 61; opacity: 1; }
 }
+
 
 .app-title { flex: 1; min-width: 0; }
 
@@ -527,19 +547,16 @@ html, body {
 .led-stage {
     display: grid;
     place-items: center;
-    padding: 20px 0 6px;
+    padding: 22px 0 8px;
 }
 
-.led-large { width: 124px; height: 124px; }
-
-/* A thick band rather than a hairline: the viewBox is 28 units across, so a stroke of 5.5
-   renders about 24px wide at this size. */
-.led-large circle { stroke-width: 5.5; }
-.led-large .led-track { opacity: 0.22; }
-.led-large .led-arc { filter: drop-shadow(0 0 14px currentColor); }
+.led-large { width: 148px; height: 148px; }
+.led-large circle { stroke-width: 8.5; }
+.led-large .led-arc { stroke-width: 5.2; }
+.led-large .led-shadow { transform: translateY(2px); filter: blur(2.4px); }
+.led-large .led-halo { filter: blur(9px); }
 
 @media (max-width: 620px) {
-    .led-large { width: 86px; height: 86px; }
-    .led-large circle { stroke-width: 5; }
+    .led-large { width: 100px; height: 100px; }
     .led-stage { padding: 14px 0 4px; }
 }
