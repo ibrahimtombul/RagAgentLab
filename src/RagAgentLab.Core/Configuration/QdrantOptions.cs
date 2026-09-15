@@ -25,9 +25,9 @@ public sealed class QdrantOptions
     public string CollectionName { get; set; } = "hr-policies";
 
     /// <summary>
-    /// Dimension of the stored vectors. Must match the embedding model: nomic-embed-text
-    /// produces 768 dimensions. The collection is created with this size, so changing the
-    /// embedding model means recreating the collection.
+    /// Dimension of the stored vectors. Must match the embedding model: bge-m3 produces 1024,
+    /// nomic-embed-text 768. The collection is created with this size, so changing the embedding
+    /// model means recreating the collection.
     /// </summary>
-    public int VectorSize { get; set; } = 768;
+    public int VectorSize { get; set; } = 1024;
 }

@@ -18,12 +18,16 @@ public sealed class SqliteVectorStoreTests : IDisposable
         new(Options.Create(new SqliteOptions { DatabasePath = _databasePath }),
             NullLogger<SqliteVectorStore>.Instance);
 
+    private const string Model = "test-embedder";
+
     private static VectorRecord Record(
         string id,
         string text,
         ChunkOrigin origin,
         params float[] vector) =>
-        new(new DocumentChunk(id, $"{id}.txt", "Test", 0, text) { Origin = origin }, vector.AsMemory());
+        new(new DocumentChunk(id, $"{id}.txt", "Test", 0, text) { Origin = origin },
+            vector.AsMemory(),
+            ChunkFingerprint.Compute(Model, text));
 
     [Fact]
     public async Task Vectors_SurviveAcrossInstances()
@@ -61,12 +65,12 @@ public sealed class SqliteVectorStoreTests : IDisposable
         await store.UpsertAsync([Record("a", "ilk hâli", ChunkOrigin.File, 1f, 0f)]);
 
         var before = await store.GetFingerprintsAsync();
-        Assert.Equal(ChunkFingerprint.Compute("ilk hâli"), before["a"]);
+        Assert.Equal(ChunkFingerprint.Compute(Model, "ilk hâli"), before["a"]);
 
         await store.UpsertAsync([Record("a", "değişmiş hâli", ChunkOrigin.File, 1f, 0f)]);
 
         var after = await store.GetFingerprintsAsync();
-        Assert.Equal(ChunkFingerprint.Compute("değişmiş hâli"), after["a"]);
+        Assert.Equal(ChunkFingerprint.Compute(Model, "değişmiş hâli"), after["a"]);
         Assert.Equal(1, await store.CountAsync());
     }
 
@@ -93,6 +97,19 @@ public sealed class SqliteVectorStoreTests : IDisposable
         Assert.Contains("kept", ids);
         Assert.Contains("note", ids);          // a note is not produced by any document
         Assert.DoesNotContain("stale", ids);
+    }
+
+    [Fact]
+    public void Fingerprints_DifferWhenOnlyTheEmbeddingModelChanges()
+    {
+        // The regression this guards: swapping the embedding model leaves every chunk's text
+        // untouched, so a text-only fingerprint would match and the store would keep serving
+        // vectors of the wrong dimension from the previous model.
+        const string text = "aynı metin";
+
+        Assert.NotEqual(
+            ChunkFingerprint.Compute("nomic-embed-text", text),
+            ChunkFingerprint.Compute("bge-m3", text));
     }
 
     [Fact]

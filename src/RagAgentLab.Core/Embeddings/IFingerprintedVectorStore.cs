@@ -16,6 +16,18 @@ public interface IFingerprintedVectorStore
     Task<IReadOnlyDictionary<string, string>> GetFingerprintsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Returns every stored chunk, whatever its origin.
+    /// <para>
+    /// Needed so that chunks with no document behind them — notes taught through the chat — can
+    /// still be re-embedded when the embedding model changes. Without this they would keep
+    /// vectors of the previous model's width and the next search would fail on a dimension
+    /// mismatch.
+    /// </para>
+    /// </summary>
+    /// <param name="cancellationToken">Token used to cancel the call.</param>
+    Task<IReadOnlyList<DocumentChunk>> GetChunksAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Removes chunks that came from a document but are no longer produced by one, leaving
     /// runtime-added notes untouched.
     /// </summary>

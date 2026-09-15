@@ -86,12 +86,17 @@ public sealed class KnowledgeBaseWriter
             })
             .ToArray();
 
-        var vectors = await _embeddingService.EmbedDocumentsAsync(
-            chunks.Select(c => c.ToContextualText()).ToArray(), cancellationToken);
+        var texts = chunks.Select(c => c.ToContextualText()).ToArray();
+        var vectors = await _embeddingService.EmbedDocumentsAsync(texts, cancellationToken);
 
-        await _vectorStore.UpsertAsync(
-            chunks.Zip(vectors, (chunk, vector) => new VectorRecord(chunk, vector)).ToArray(),
-            cancellationToken);
+        var records = chunks
+            .Select((chunk, index) => new VectorRecord(
+                chunk,
+                vectors[index],
+                ChunkFingerprint.Compute(_embeddingService.ModelId, texts[index])))
+            .ToArray();
+
+        await _vectorStore.UpsertAsync(records, cancellationToken);
 
         _logger.LogInformation("Added note {Source} as {Count} chunk(s).", sourceName, chunks.Length);
         return new NoteResult(sourceName, chunks.Length);

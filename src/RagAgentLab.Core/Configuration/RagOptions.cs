@@ -27,11 +27,11 @@ public sealed class RagOptions
     /// <summary>
     /// Prefix prepended to every document before it is embedded.
     /// <para>
-    /// nomic-embed-text is trained with task prefixes and expects stored passages and search
-    /// queries to be marked differently. Leaving them off measurably degrades ranking, because
-    /// every text ends up in the same narrow region of the vector space. Set both prefixes to
-    /// an empty string for models that do not use this convention (for example
-    /// all-minilm or OpenAI's text-embedding-3).
+    /// Whether a prefix is needed is a property of the model. nomic-embed-text is trained with
+    /// task prefixes and expects stored passages and search queries to be marked differently;
+    /// leaving them off measurably degrades its ranking. bge-m3, the current default, needs no
+    /// prefix, so both values are empty. Getting this wrong is silent - retrieval simply gets
+    /// worse - which is why the defaults ship matched to the default model.
     /// </para>
     /// </summary>
     public string DocumentEmbeddingPrefix { get; set; } = "search_document: ";

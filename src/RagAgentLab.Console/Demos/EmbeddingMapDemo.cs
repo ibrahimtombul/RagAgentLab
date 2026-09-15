@@ -91,7 +91,7 @@ public sealed class EmbeddingMapDemo
                 .ToArray())
             .ToArray();
 
-        var svg = Render(chunks, points, retrievals);
+        var svg = Render(chunks, points, retrievals, chunkVectors[0].Length);
         var fullPath = Path.GetFullPath(outputPath);
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
         await File.WriteAllTextAsync(fullPath, svg, Encoding.UTF8, cancellationToken);
@@ -102,7 +102,8 @@ public sealed class EmbeddingMapDemo
     private string Render(
         IReadOnlyList<DocumentChunk> chunks,
         IReadOnlyList<(double X, double Y)> points,
-        IReadOnlyList<(int Index, double Score)[]> retrievals)
+        IReadOnlyList<(int Index, double Score)[]> retrievals,
+        int dimensions)
     {
         const int width = 960;
         const int height = 660;
@@ -125,7 +126,7 @@ public sealed class EmbeddingMapDemo
         svg.AppendLine($"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="{width}" height="{height}" font-family="system-ui, -apple-system, Segoe UI, sans-serif">""");
         svg.AppendLine("""<rect width="100%" height="100%" fill="#15161a"/>""");
         svg.AppendLine($"""<text x="{padding}" y="34" fill="#eceef2" font-size="16" font-weight="600">A map of the knowledge base</text>""");
-        svg.AppendLine($"""<text x="{padding}" y="54" fill="#9a9ca6" font-size="12">768-dimensional embedding space flattened onto its two principal axes. Dashed lines: the {_options.TopK} chunks each question actually retrieves, scored in the full space.</text>""");
+        svg.AppendLine($"""<text x="{padding}" y="54" fill="#9a9ca6" font-size="12">{dimensions}-dimensional embedding space flattened onto its two principal axes. Dashed lines: the {_options.TopK} chunks each question actually retrieves, scored in the full space.</text>""");
 
         // Lines first, so the points sit on top of them.
         for (var q = 0; q < retrievals.Count; q++)

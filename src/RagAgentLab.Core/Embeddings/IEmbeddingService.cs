@@ -14,6 +14,13 @@ namespace RagAgentLab.Embeddings;
 /// </summary>
 public interface IEmbeddingService
 {
+    /// <summary>
+    /// Identifies the model producing the vectors. Callers need it to tell stored vectors apart
+    /// when the configured model changes, since a chunk's text says nothing about which model
+    /// embedded it.
+    /// </summary>
+    string ModelId { get; }
+
     /// <summary>Embeds a search query, such as the user's question.</summary>
     /// <param name="query">The query text.</param>
     /// <param name="cancellationToken">Token used to cancel the call.</param>

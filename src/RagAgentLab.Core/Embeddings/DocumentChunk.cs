@@ -51,7 +51,14 @@ public enum ChunkOrigin
 /// <summary>A chunk together with its embedding vector, as held by the vector store.</summary>
 /// <param name="Chunk">The chunk metadata and text.</param>
 /// <param name="Vector">Embedding of <see cref="DocumentChunk.Text"/>.</param>
-public sealed record VectorRecord(DocumentChunk Chunk, ReadOnlyMemory<float> Vector);
+/// <param name="Fingerprint">
+/// Hash of the embedded text together with the model that embedded it, so a store can tell
+/// whether a chunk needs re-embedding after either one changes.
+/// </param>
+public sealed record VectorRecord(
+    DocumentChunk Chunk,
+    ReadOnlyMemory<float> Vector,
+    string Fingerprint = "");
 
 /// <summary>A search hit: a chunk plus how similar it was to the query.</summary>
 /// <param name="Chunk">The matched chunk.</param>

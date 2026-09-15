@@ -78,7 +78,7 @@ public sealed class SqliteVectorStore : IVectorStore, IFingerprintedVectorStore,
                         vector = excluded.vector;
                     """;
 
-                var fingerprint = ChunkFingerprint.Compute(record.Chunk.Text);
+                var fingerprint = record.Fingerprint;
 
                 command.Parameters.AddWithValue("$id", record.Chunk.Id);
                 command.Parameters.AddWithValue("$source", record.Chunk.SourceName);
@@ -140,6 +140,13 @@ public sealed class SqliteVectorStore : IVectorStore, IFingerprintedVectorStore,
     {
         await EnsureInitialisedAsync(cancellationToken);
         return _fingerprints.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<DocumentChunk>> GetChunksAsync(CancellationToken cancellationToken = default)
+    {
+        await EnsureInitialisedAsync(cancellationToken);
+        return _index.Values.Select(record => record.Chunk).ToArray();
     }
 
     /// <inheritdoc />

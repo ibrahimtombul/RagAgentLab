@@ -13,19 +13,25 @@ namespace RagAgentLab.Embeddings;
 public sealed class SemanticKernelEmbeddingService : IEmbeddingService
 {
     private readonly IEmbeddingGenerator<string, Embedding<float>> _generator;
+    private readonly OllamaOptions _ollamaOptions;
     private readonly RagOptions _options;
     private readonly ILogger<SemanticKernelEmbeddingService> _logger;
 
     /// <summary>Creates a new instance. Called by the DI container.</summary>
     public SemanticKernelEmbeddingService(
         IEmbeddingGenerator<string, Embedding<float>> generator,
+        IOptions<OllamaOptions> ollamaOptions,
         IOptions<RagOptions> options,
         ILogger<SemanticKernelEmbeddingService> logger)
     {
         _generator = generator;
+        _ollamaOptions = ollamaOptions.Value;
         _options = options.Value;
         _logger = logger;
     }
+
+    /// <inheritdoc />
+    public string ModelId => _ollamaOptions.EmbeddingModel;
 
     /// <inheritdoc />
     public async Task<ReadOnlyMemory<float>> EmbedQueryAsync(

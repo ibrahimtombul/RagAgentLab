@@ -31,6 +31,47 @@ public sealed class KnowledgeBaseIngestor
         _logger = logger;
     }
 
+    /// <summary>
+    /// Re-embeds stored chunks that this run did not produce and whose fingerprint is stale.
+    /// </summary>
+    /// <returns>How many chunks were re-embedded.</returns>
+    private async Task<int> RefreshStoredChunksAsync(
+        IFingerprintedVectorStore store,
+        ICollection<string> idsHandledByThisRun,
+        CancellationToken cancellationToken)
+    {
+        var handled = new HashSet<string>(idsHandledByThisRun, StringComparer.Ordinal);
+        var stored = await store.GetChunksAsync(cancellationToken);
+        var fingerprints = await store.GetFingerprintsAsync(cancellationToken);
+
+        var stale = stored
+            .Where(chunk => !handled.Contains(chunk.Id))
+            .Where(chunk => !fingerprints.TryGetValue(chunk.Id, out var current) ||
+                            current != ChunkFingerprint.Compute(
+                                _embeddingService.ModelId, chunk.ToContextualText()))
+            .ToArray();
+
+        if (stale.Length == 0)
+        {
+            return 0;
+        }
+
+        var texts = stale.Select(chunk => chunk.ToContextualText()).ToArray();
+        var vectors = await _embeddingService.EmbedDocumentsAsync(texts, cancellationToken);
+
+        var records = stale
+            .Select((chunk, index) => new VectorRecord(
+                chunk,
+                vectors[index],
+                ChunkFingerprint.Compute(_embeddingService.ModelId, texts[index])))
+            .ToArray();
+
+        await _vectorStore.UpsertAsync(records, cancellationToken);
+        _logger.LogInformation("Re-embedded {Count} chunk(s) after an embedding model change.", stale.Length);
+
+        return stale.Length;
+    }
+
     /// <summary>Ingests every <c>*.txt</c> file in the configured data directory.</summary>
     /// <param name="cancellationToken">Token used to cancel the run.</param>
     /// <returns>Counts and timings for the run.</returns>
@@ -82,9 +123,16 @@ public sealed class KnowledgeBaseIngestor
             ? await fingerprinted.GetFingerprintsAsync(cancellationToken)
             : new Dictionary<string, string>();
 
+        // The fingerprint covers the exact text sent to the embedding model and the model's own
+        // name, so both an edited document and a swapped model force a re-embed.
+        var fingerprints = chunks.ToDictionary(
+            chunk => chunk.Id,
+            chunk => ChunkFingerprint.Compute(_embeddingService.ModelId, chunk.ToContextualText()),
+            StringComparer.Ordinal);
+
         var changed = chunks
-            .Where(chunk => !stored.TryGetValue(chunk.Id, out var fingerprint) ||
-                            fingerprint != ChunkFingerprint.Compute(chunk.Text))
+            .Where(chunk => !stored.TryGetValue(chunk.Id, out var stale) ||
+                            stale != fingerprints[chunk.Id])
             .ToArray();
 
         // 3) Embed only those, and store them.
@@ -95,7 +143,7 @@ public sealed class KnowledgeBaseIngestor
                 changed.Select(c => c.ToContextualText()).ToArray(), cancellationToken);
 
             var records = changed
-                .Zip(vectors, (chunk, vector) => new VectorRecord(chunk, vector))
+                .Zip(vectors, (chunk, vector) => new VectorRecord(chunk, vector, fingerprints[chunk.Id]))
                 .ToArray();
 
             await _vectorStore.UpsertAsync(records, cancellationToken);
@@ -108,16 +156,26 @@ public sealed class KnowledgeBaseIngestor
                 chunks.Select(c => c.Id).ToArray(), cancellationToken)
             : 0;
 
+        // 5) Re-embed anything already in the store that this run did not touch but whose
+        //    fingerprint no longer matches - in practice, notes taught through the chat after
+        //    the embedding model was changed. They have no document behind them, so nothing
+        //    above would have caught them, and a stale vector of the previous model's width
+        //    would make the next search throw on a dimension mismatch.
+        var refreshed = fingerprinted is not null
+            ? await RefreshStoredChunksAsync(fingerprinted, fingerprints.Keys, cancellationToken)
+            : 0;
+
         stopwatch.Stop();
 
         _logger.LogInformation(
-            "Ingested {Documents} document(s): {Embedded} chunk(s) embedded, {Reused} reused, {Removed} removed.",
-            files.Length, changed.Length, chunks.Count - changed.Length, removed);
+            "Ingested {Documents} document(s): {Embedded} chunk(s) embedded, {Reused} reused, " +
+            "{Removed} removed, {Refreshed} non-document chunk(s) re-embedded.",
+            files.Length, changed.Length, chunks.Count - changed.Length, removed, refreshed);
 
         return new IngestionReport(
             DocumentCount: files.Length,
             ChunkCount: chunks.Count,
-            EmbeddedChunkCount: changed.Length,
+            EmbeddedChunkCount: changed.Length + refreshed,
             RemovedChunkCount: removed,
             EmbeddingDimensions: dimensions,
             Duration: stopwatch.Elapsed);

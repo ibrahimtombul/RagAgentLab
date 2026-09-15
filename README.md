@@ -71,7 +71,7 @@ Each stage is a separate commit, and each one is runnable on its own.
 ```bash
 brew install ollama          # macOS; see ollama.com for Linux and Windows
 ollama serve                 # starts the server on http://localhost:11434
-ollama pull nomic-embed-text # embedding model (274 MB)
+ollama pull bge-m3           # embedding model (1.2 GB)
 ollama pull qwen2.5:7b       # chat model (4.7 GB) - see Known limitations for why not llama3.2
 ```
 
@@ -97,7 +97,7 @@ dotnet run --project src/RagAgentLab -- connect   # stage 1: connectivity check
 dotnet run --project src/RagAgentLab -- agent "Eğitim bütçem ne kadar?"
 ```
 
-The corpus is four fictional HR policy documents in [`data/`](src/RagAgentLab/data): annual and
+The corpus is four fictional HR policy documents in [`data/`](src/RagAgentLab.Core/data): annual and
 parental leave, hybrid working, travel and expense limits, and training and performance reviews.
 Nothing in them is real, and the model has never seen them — which is exactly what makes the
 difference between a grounded and an ungrounded answer visible.
@@ -105,7 +105,7 @@ difference between a grounded and an ungrounded answer visible.
 ## Configuration
 
 Nothing about the model, the host or the retrieval parameters is hard-coded. Everything lives in
-[`appsettings.json`](src/RagAgentLab/appsettings.json), bound to typed options classes and validated
+[`appsettings.json`](src/RagAgentLab.Web/appsettings.json), bound to typed options classes and validated
 at start-up:
 
 ```json
@@ -113,7 +113,7 @@ at start-up:
   "Ollama": {
     "Endpoint": "http://localhost:11434",
     "ChatModel": "qwen2.5:7b",
-    "EmbeddingModel": "nomic-embed-text",
+    "EmbeddingModel": "bge-m3",
     "TimeoutSeconds": 180,
     "Temperature": 0.2,
     "MaxOutputTokens": 800
@@ -124,8 +124,8 @@ at start-up:
     "ChunkOverlap": 120,
     "TopK": 3,
     "EmbeddingBatchSize": 16,
-    "DocumentEmbeddingPrefix": "search_document: ",
-    "QueryEmbeddingPrefix": "search_query: ",
+    "DocumentEmbeddingPrefix": "",
+    "QueryEmbeddingPrefix": "",
     "VectorStore": "InMemory"
   }
 }
@@ -137,7 +137,7 @@ Any value can be overridden by an environment variable, e.g. `Ollama__ChatModel=
 ## Project layout
 
 ```
-src/RagAgentLab/
+src/RagAgentLab.Core/
 ├── Configuration/   typed options bound from appsettings.json
 ├── Ollama/          HTTP client for the model server (+ OpenAI-shaped DTOs)
 ├── Embeddings/      embedding service, IVectorStore, in-memory and Qdrant implementations
@@ -160,7 +160,7 @@ tests/RagAgentLab.Tests/   unit tests for the deterministic parts (no model serv
 flowchart LR
     A["data/*.txt<br/>5 documents"] --> B["TextChunker<br/>~600 chars, 120 overlap"]
     B --> C["26 chunks"]
-    C --> D["nomic-embed-text<br/>each chunk → 768 numbers"]
+    C --> D["bge-m3<br/>each chunk → 1024 numbers"]
     D --> E[("SQLite<br/>vector + text + fingerprint")]
 
     style E fill:#1f2d27,stroke:#6fbf95,color:#eceef2
@@ -215,7 +215,7 @@ sequenceDiagram
     autonumber
     participant U as User
     participant A as Agent
-    participant E as nomic-embed-text
+    participant E as bge-m3
     participant S as Vector store
     participant L as qwen2.5:7b
 
@@ -223,7 +223,7 @@ sequenceDiagram
     A->>L: question + JSON schema of all six tools
     L-->>A: call search_hr_policy(question)
     A->>E: embed the question
-    E-->>A: 768 numbers
+    E-->>A: 1024 numbers
     A->>S: nearest 3 chunks
     S-->>A: 02-uzaktan-calisma (0.726), (0.691), (0.679)
     A->>L: question + the 3 retrieved chunks
@@ -278,13 +278,13 @@ of code.
 There are two models in this project doing completely different jobs, and most of the confusion
 about systems like this comes from treating them as one thing.
 
-| | `nomic-embed-text` | `qwen2.5:7b` |
+| | `bge-m3` | `qwen2.5:7b` |
 |---|---|---|
-| What it does | Turns a piece of text into 768 numbers | Reads text and writes what comes next |
+| What it does | Turns a piece of text into 1024 numbers | Reads text and writes what comes next |
 | Output | A vector — coordinates, not words | Words |
 | Used for | Indexing every chunk, and every question | Choosing a tool, writing the answer |
 | Called | Once per chunk, once per question | Once per tool-calling round |
-| Size on disk | 274 MB | 4.7 GB |
+| Size on disk | 1.2 GB | 4.7 GB |
 | Typical latency | Milliseconds | 5–30 s on CPU |
 | What a failure looks like | The wrong chunk is retrieved | A wrong answer, or no tool call |
 
@@ -294,39 +294,63 @@ Retrieval-augmented generation is the trick of using the first to put the right 
 the second.
 
 **Why a separate embedding model at all.** A chat model can produce embeddings too, but they are
-slower and worse: `qwen2.5:7b` would have to run its full 4.7 GB of weights to turn one sentence
-into a vector, where `nomic-embed-text` does the same job in milliseconds with a model small
-enough to stay resident alongside it. Indexing this corpus takes about two seconds; through the
-chat model it would take minutes.
+slower and worse at it: `qwen2.5:7b` would have to run its full 4.7 GB of weights to turn one
+sentence into a vector, and its vectors are a by-product of a model trained to predict words
+rather than to place texts near each other. A dedicated retrieval model does one job, and does it
+in milliseconds. Indexing this corpus takes a couple of seconds; through the chat model it would
+take minutes — and every question pays that cost again.
 
-**Why `nomic-embed-text`.** It is purpose-built for retrieval, it is small enough to keep loaded
-next to the chat model on a laptop, and 768 dimensions is a reasonable point on the quality/size
-curve. It also expects task prefixes — `search_document:` for stored passages, `search_query:` for
-questions — which is why [`IEmbeddingService`](src/RagAgentLab.Core/Embeddings/IEmbeddingService.cs)
-has separate methods for the two; leaving the prefixes off measurably worsened ranking.
+**Choosing the embedding model was a measurement, not a preference.** The project started on
+`nomic-embed-text`: purpose-built for retrieval, only 274 MB, and it expects task prefixes
+(`search_document:` / `search_query:`) which the code was built around. It worked — until the
+corpus was Turkish.
 
-**Its measured weakness is Turkish.** The whole system rests on the assumption that texts meaning
-the same thing land near each other. That is testable:
+Everything retrieval does rests on one assumption: texts meaning the same thing land near each
+other. That is testable in seconds, and both models were put through the same probe:
 
 ```bash
 dotnet run --project src/RagAgentLab.Console -- similarity
 ```
 
-| Compared against *"do I get how many days of annual leave?"* | 🇹🇷 Turkish | 🇬🇧 English |
+Similarity against *"How many days of annual leave do I get?"*, in both languages:
+
+| | 🇹🇷 `nomic` | 🇹🇷 `bge-m3` | 🇬🇧 `nomic` | 🇬🇧 `bge-m3` |
+|---|---|---|---|---|
+| Same meaning, different words | 0.577 | **0.723** | 0.710 | 0.762 |
+| Different topic, same domain | **0.649** ❌ | 0.472 | 0.615 | 0.613 |
+| Unrelated (sorting a list in Python) | 0.559 ❌ | 0.389 | 0.385 | 0.351 |
+
+In English `nomic-embed-text` is fine: the ordering is right, and it gets there without the
+question and its paraphrase sharing a single content word. In Turkish the ordering *inverts* — a
+question about meal allowances scores higher against an annual-leave question than that
+question's own paraphrase, because the model latched onto the shared "ne kadar?" phrasing rather
+than the meaning. `bge-m3` is multilingual and gets Turkish right, with a far wider spread
+between the relevant and the irrelevant.
+
+That difference shows up directly in retrieval. Best match per question, over the real corpus:
+
+| Question | `nomic` | `bge-m3` |
 |---|---|---|
-| Same meaning, different words (*leave* ↔ *vacation*) | 0.577 | **0.710** |
-| Different topic, same domain (meal allowance) | **0.649** ❌ | 0.615 |
-| Unrelated (sorting a list in Python) | 0.559 ❌ | **0.385** |
+| Working from abroad — **in scope** | 0.726 | 0.734 |
+| Meal allowance — **in scope** | 0.716 | 0.693 |
+| Training budget — **in scope** | 0.681 | 0.699 |
+| Annual leave after six years — **in scope** | 0.694 | 0.632 |
+| **Sorting a list in Python — out of scope** | **0.704** | 0.459 |
+| Minimum wage — out of scope | 0.670 | 0.442 |
+| Weather in İstanbul — out of scope | 0.665 | 0.413 |
+| "What is your purpose?" — out of scope | 0.584 | 0.426 |
 
-In English the ordering is exactly right, and it gets there without sharing a single content word
-between the question and its paraphrase — that is the mechanism working. In Turkish the ordering
-collapses: a question about meal allowances scores *higher* than a paraphrase of the question
-itself, because the model latched onto the shared "ne kadar?" phrasing rather than the meaning.
+With `nomic-embed-text` the two groups overlap: a question about Python outscores a genuine
+question about the training budget, and no cutoff can separate them. With `bge-m3` the worst
+in-scope question (0.632) sits well clear of the best out-of-scope one (0.459) — a gap of 0.17,
+which makes a relevance threshold a viable feature rather than a guess. `bge-m3` is therefore the
+default.
 
-This is the root cause of a finding recorded under [Known limitations](#a-fixed-relevance-threshold-does-not-separate-in-scope-from-out-of-scope):
-no fixed similarity threshold separates in-scope questions from out-of-scope ones in this corpus. It is not a tuning problem.
-The obvious next step is a multilingual embedding model such as `bge-m3` and the same measurement
-again.
+The switch cost two things worth knowing about. It is **four times the size** (1.2 GB against
+274 MB), which matters more on a small server than on a laptop. And it needs **no task prefixes**,
+so both prefix settings are now empty — whether a prefix helps is a property of the model, and
+getting it wrong is silent: retrieval simply gets worse. The defaults ship matched to the default
+model.
 
 **Why `qwen2.5:7b`.** The project started on `llama3.2` (3B) because small is convenient, and it
 was measured failing: it wrote tool calls as prose, corrupted Turkish inside tool arguments, and
@@ -346,7 +370,7 @@ Both models are configuration values, so trying a different one is a one-line ch
 Semantic Kernel provides the piece that is genuinely tedious to write by hand: the **automatic
 function-calling loop**. Turning C# methods into JSON tool schemas, feeding tool results back into
 the conversation, and looping until the model produces a final answer is all handled by the SDK.
-Filters ([`ToolCallTraceFilter`](src/RagAgentLab/Agents/ToolCallTraceFilter.cs)) then make that loop
+Filters ([`ToolCallTraceFilter`](src/RagAgentLab.Core/Agents/ToolCallTraceFilter.cs)) then make that loop
 observable, which is the same hook a production system would use for tracing, rate limiting, or an
 approval gate in front of a destructive tool.
 
@@ -367,13 +391,13 @@ kernelBuilder.AddOpenAIEmbeddingGenerator(options.EmbeddingModel, openAiClient);
 `IVectorStore` is the abstraction; there are two implementations behind it and the choice is a
 configuration value.
 
-[`InMemoryVectorStore`](src/RagAgentLab/Embeddings/InMemoryVectorStore.cs) scores every record on
+[`InMemoryVectorStore`](src/RagAgentLab.Core/Embeddings/InMemoryVectorStore.cs) scores every record on
 each query — an exact, brute-force k-NN scan. For a corpus of this size that is the right answer:
 a few dozen chunks are scanned in microseconds, results are exact rather than approximate, and there
 is no container to run before the demo works. An ANN index only starts paying for itself in the tens
 of thousands of chunks.
 
-[`QdrantVectorStore`](src/RagAgentLab/Embeddings/QdrantVectorStore.cs) is what that upgrade looks
+[`QdrantVectorStore`](src/RagAgentLab.Core/Embeddings/QdrantVectorStore.cs) is what that upgrade looks
 like: an HNSW index, data that survives a restart, and chunk text carried in the point payload
 because the store no longer shares the application's heap. **Nothing above the interface changed** —
 not the ingestor, not the RAG pipeline, not the agent's policy tool.
@@ -386,23 +410,25 @@ implementation rather than the current one is what made the swap a one-file chan
 
 Both were found by reading the output rather than the code, and both changed the answers measurably.
 
-**Embedding models can be asymmetric.** `nomic-embed-text` is trained with task prefixes and expects
-a stored passage (`search_document:`) to be marked differently from a query (`search_query:`).
-Without them every text lands in the same narrow region of the vector space and ranking degrades.
-This is why [`IEmbeddingService`](src/RagAgentLab/Embeddings/IEmbeddingService.cs) has *separate
-methods* for documents and queries — a caller cannot accidentally embed a question the way a
-document is embedded, which would otherwise be a silent quality bug rather than a crash.
+**Some embedding models are asymmetric.** `nomic-embed-text`, which this project used first, is
+trained with task prefixes and expects a stored passage (`search_document:`) to be marked
+differently from a query (`search_query:`); leaving them off measurably worsened its ranking.
+`bge-m3`, the current default, needs no prefix at all — so whether a prefix helps is a property of
+the model, and both prefixes are configuration values that ship matched to the default model.
+[`IEmbeddingService`](src/RagAgentLab.Core/Embeddings/IEmbeddingService.cs) keeps *separate methods*
+for documents and queries either way, so a caller cannot accidentally embed a question the way a
+document is embedded — which would be a silent quality bug rather than a crash.
 
 **An isolated chunk loses its topic.** "Employees work four days a week from the office" reads as a
 general rule until you know it came from the onboarding section of the remote-work policy. Each
 chunk therefore carries its document title into both the embedding and the prompt
-([`DocumentChunk.ToContextualText`](src/RagAgentLab/Embeddings/DocumentChunk.cs)). Before this
+([`DocumentChunk.ToContextualText`](src/RagAgentLab.Core/Embeddings/DocumentChunk.cs)). Before this
 change the model answered "haftada 4 gün" to a question about the general office-day rule; after it,
 "en az 2 gün, Salı ve Perşembe" — the correct answer.
 
 ### Chunk size is a target, not a hard cap
 
-[`TextChunker`](src/RagAgentLab/Rag/TextChunker.cs) splits on paragraph boundaries and only falls
+[`TextChunker`](src/RagAgentLab.Core/Rag/TextChunker.cs) splits on paragraph boundaries and only falls
 back to a hard character cut for a paragraph that exceeds the chunk size on its own. A coherent
 paragraph that overshoots slightly beats a paragraph cut in half. A chunk is also never closed while
 it is still shorter than the overlap — without that rule a short document heading became a chunk of
@@ -439,7 +465,7 @@ max_completion_tokens  -> completion_tokens=457, finish_reason=stop
 
 So the configured output limit did nothing, and a model that started rambling — a common failure
 mode for small models during tool calling — generated until the request timed out.
-[`OllamaCompatibilityHandler`](src/RagAgentLab/Infrastructure/OllamaCompatibilityHandler.cs) renames
+[`OllamaCompatibilityHandler`](src/RagAgentLab.Core/Infrastructure/OllamaCompatibilityHandler.cs) renames
 the field on the way out, in the one place such quirks belong, so the rest of the code keeps using
 the standard SDK.
 
@@ -485,31 +511,21 @@ boundary of a 7B model on a laptop, and it is why the scripted demo questions ea
 A multi-step plan needs either a larger model or an explicitly orchestrated chain — at which point
 the deterministic pipeline of stage 2 is the better tool for the job.
 
-### A fixed relevance threshold does not separate in-scope from out-of-scope
+### A relevance threshold depends entirely on the embedding model
 
 The obvious way to stop an out-of-scope question dragging irrelevant passages into the prompt is
-to ignore matches below some similarity. Measured with
-`dotnet run --project src/RagAgentLab.Console -- retrieve "<question>"`, the best match per
-question was:
+to ignore matches below some similarity. On `nomic-embed-text` that turned out to be impossible:
+an out-of-scope question about Python scored 0.704 while a genuine question about the training
+budget scored 0.681, so a cutoff at 0.70 would have admitted the wrong one and rejected the right
+one. The measurement is [above](#the-two-models-and-what-each-is-for).
 
-| Question | Top match |
-|---|---|
-| Working from abroad — **in scope** | 0.726 |
-| Meal allowance — **in scope** | 0.716 |
-| Annual leave after six years — **in scope** | 0.694 |
-| Training budget — **in scope** | 0.681 |
-| **Sorting a list in Python — out of scope** | **0.704** |
-| Minimum wage — out of scope | 0.670 |
-| Weather in İstanbul — out of scope | 0.665 |
-| "What is your purpose?" — out of scope | 0.584 |
+On `bge-m3` the same eight questions separate cleanly — 0.632 at worst in scope against 0.459 at
+best out of scope. A threshold somewhere around 0.55 would now work.
 
-The ranges overlap: a question about Python scores higher than a genuine question about the
-training budget. A cutoff at 0.70 would have admitted the Python question and rejected the
-training-budget one. No single number works, which is why there is no threshold in the code.
-
-The cause is the embedding model's weak separation in Turkish, measured
-[above](#the-two-models-and-what-each-is-for). The fix is a better embedding model or a
-re-ranking pass over the retrieved chunks, not a constant.
+It is still not implemented. The point of recording this is the shape of the problem rather than
+the number: a threshold is not a property of RAG that can be looked up, it is a property of the
+particular embedding model against the particular corpus, and it has to be measured before it can
+be chosen. On one model it was impossible; on another it is straightforward.
 
 ### Prompt length is not a free parameter
 
