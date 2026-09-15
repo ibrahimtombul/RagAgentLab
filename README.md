@@ -58,6 +58,60 @@ Model gerektirmeyen, anında çalışan bir demo:
 dotnet run --project src/RagAgentLab.Console -- chunks   # dokümanlar nasıl parçalanıyor
 ```
 
+## Bilgi tabanına doküman ekleme
+
+Zorunlu bir format yok. Düz metin yaz, UTF-8 kaydet,
+[`src/RagAgentLab.Core/data/`](src/RagAgentLab.Core/data) içine `.txt` olarak koy. Uygulama
+açılışta kendisi parçalar, embed eder ve veritabanına yazar — yalnızca metni değişmiş dosyaları
+yeniden işler.
+
+Markdown, JSON, başlık etiketi veya özel bir şablon gerekmiyor. Ama **nasıl yazdığın** retrieval
+kalitesini doğrudan etkiliyor, çünkü metni parçalara ayıran kod tutunacak bir yer arıyor:
+
+**1. İlk satır başlık olsun.** Kod ilk boş olmayan satırı alıp o dosyadan üretilen **her parçanın
+başına ekliyor**. Böylece tek başına getirilen bir parça bile hangi dokümandan geldiğini taşır.
+
+**2. Bölümler arasına boş satır koy.** En kritik kural. Parçalayıcı önce boş satırlara bakar;
+bulamazsa karakter sınırında, cümlenin ortasından keser.
+
+**3. Her paragraf kendi başına anlamlı olsun.** Bir parça tek başına getirilebilir.
+"Bu süre 8 haftadır" diye başlayan bir paragraf işe yaramaz — neyin sekiz haftası olduğu başka bir
+parçada kalır.
+
+**4. Bölümleri `Rag:ChunkSize` sınırının (varsayılan 600 karakter) altında tut.**
+
+**5. Liste ve tablolarda her kaydı ayrı satıra yaz.** Parçalayıcı satır sınırına hizalanır, böylece
+bir satırın etiketi değerinden kopmaz.
+
+Aynı içeriğin iki yazımı, gerçek çıktı:
+
+| | Boş satırsız tek blok | Başlıklı, bölümlere ayrılmış |
+|---|---|---|
+| 1. parça | 600 karakterde **cümle ortasından** kesildi | 430 karakter, bölüm sonunda temiz kesildi |
+| 2. parça | `"eksik yakıtla teslim edilen…"` — sahipsiz | `"Yakıt giderleri…"` — bölüm başından |
+
+### Eklendikten sonra kontrol
+
+```bash
+dotnet run --project src/RagAgentLab.Console -- chunks
+dotnet run --project src/RagAgentLab.Console -- retrieve "dokümanla ilgili bir soru"
+```
+
+İlki dosyanın nasıl bölündüğünü gösterir ve model gerektirmez. İkincisi sorunun doğru parçayı
+getirip getirmediğini ve benzerlik skorunu gösterir — skor `Rag:MinimumSimilarity` değerinin
+(varsayılan 0,55) altındaysa o parça hiç kullanılmaz.
+
+### Yapılandırılmış veriyi buraya koyma
+
+Yıl→tutar tablosu, stok listesi, fiyat kataloğu gibi **satır bazlı veriler RAG'e uygun değil**.
+Her satır neredeyse aynı vektörü üretir ve model komşu satırı okur; bu projede asgari ücret
+tablosuyla birebir yaşandı ve ölçümü
+[aşağıda](#why-a-lookup-table-does-not-belong-in-the-corpus). Böyle veriler için doğru çözüm, kesin
+sonuç döndüren bir **tool** yazmaktır — örneği
+[`MinimumWageTool`](src/RagAgentLab.Core/Tools/MinimumWageTool.cs).
+
+---
+
 > **Dokümantasyon dili:** Aşağıdaki teknik bölümler İngilizce yazıldı — kod yorumları, commit
 > mesajları ve testlerle aynı dilde olsun diye. Uygulamanın kendisi ve örnek veri Türkçe.
 
@@ -68,6 +122,7 @@ dotnet run --project src/RagAgentLab.Console -- chunks   # dokümanlar nasıl pa
 ## Contents
 
 - [Hızlı başlangıç](#hızlı-başlangıç)
+- [Bilgi tabanına doküman ekleme](#bilgi-tabanına-doküman-ekleme)
 - [How it is built, in stages](#how-it-is-built-in-stages)
 - [Requirements](#requirements)
 - [Run](#run)
@@ -482,6 +537,19 @@ back to a hard character cut for a paragraph that exceeds the chunk size on its 
 paragraph that overshoots slightly beats a paragraph cut in half. A chunk is also never closed while
 it is still shorter than the overlap — without that rule a short document heading became a chunk of
 its own and was then repeated in full at the start of the next chunk.
+
+### Why a lookup table does not belong in the corpus
+
+The minimum wage figures were first added to the corpus as a text document, one record per line,
+and retrieved through the normal RAG path. Retrieval found the right document every time — but
+every row embeds to almost the same vector, because "2014 yılı asgari ücret" and "2015 yılı asgari
+ücret" differ by one token that carries no semantic weight, and the model then had to pick the
+right row out of three overlapping chunks. Asked about 2015 it answered with 2014's figure.
+
+A year-to-amount table is a lookup, and a lookup should be exact. It now sits behind
+`get_minimum_wage`, beside the calculator, for the same reason: embedding similarity is the wrong
+instrument for it. The same argument applies to stock levels, price lists and anything else whose
+rows differ only by their values.
 
 ### Pipeline or agent?
 
