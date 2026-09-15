@@ -1,0 +1,17 @@
+KUZEY YAZILIM A.Ş. - BİLGİ GÜVENLİĞİ POLİTİKASI
+Doküman No: BG-003 | Yürürlük Tarihi: 01.04.2025 | Versiyon: 1.2
+
+1. PAROLA KURALLARI
+Tüm kurumsal hesaplarda parolalar en az 14 karakter uzunluğunda olmalıdır.
+Parolalar 180 günde bir yenilenir ve son 5 parola tekrar kullanılamaz.
+Çok faktörlü kimlik doğrulama (MFA) tüm çalışanlar için zorunludur.
+
+2. CİHAZ VE TAŞINABİLİR MEDYA
+Kurumsal verilerin USB bellek gibi taşınabilir medyaya kopyalanması yasaktır.
+İstisna gereken durumlarda Bilgi Güvenliği biriminden yazılı onay alınır ve
+şifreli kurumsal USB cihazları kullanılır.
+
+3. OLAY BİLDİRİMİ
+Şüpheli e-posta, veri sızıntısı veya cihaz kaybı durumunda olay, fark edildikten
+sonra en geç 2 saat içinde bilgi.guvenligi@kuzeyyazilim.example adresine bildirilir.
+Bildirimi geciktirmek disiplin sürecine konu olur.

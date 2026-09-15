@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\RagAgentLab\RagAgentLab.csproj" />
+    <ProjectReference Include="..\..\src\RagAgentLab.Core\RagAgentLab.Core.csproj" />
   </ItemGroup>
 
 </Project>

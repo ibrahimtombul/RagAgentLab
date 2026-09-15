@@ -1,0 +1,204 @@
+{
+  "currency": "TRY",
+  "note": "Aylik asgari ucret. 2005 oncesi tutarlar eski Turk Lirasi cinsinden oldugu icin dahil edilmemistir.",
+  "entries": [
+    {
+      "year": 2005,
+      "half": null,
+      "gross": 488.7,
+      "net": 350.15
+    },
+    {
+      "year": 2006,
+      "half": null,
+      "gross": 531.0,
+      "net": 380.46
+    },
+    {
+      "year": 2007,
+      "half": "ilk",
+      "gross": 562.5,
+      "net": 403.03
+    },
+    {
+      "year": 2007,
+      "half": "ikinci",
+      "gross": 585.0,
+      "net": 419.15
+    },
+    {
+      "year": 2008,
+      "half": "ilk",
+      "gross": 608.4,
+      "net": 481.55
+    },
+    {
+      "year": 2008,
+      "half": "ikinci",
+      "gross": 638.7,
+      "net": 503.26
+    },
+    {
+      "year": 2009,
+      "half": "ilk",
+      "gross": 666.0,
+      "net": 527.13
+    },
+    {
+      "year": 2009,
+      "half": "ikinci",
+      "gross": 693.0,
+      "net": 546.48
+    },
+    {
+      "year": 2010,
+      "half": "ilk",
+      "gross": 729.0,
+      "net": 576.57
+    },
+    {
+      "year": 2010,
+      "half": "ikinci",
+      "gross": 760.5,
+      "net": 599.12
+    },
+    {
+      "year": 2011,
+      "half": "ilk",
+      "gross": 796.5,
+      "net": 629.96
+    },
+    {
+      "year": 2011,
+      "half": "ikinci",
+      "gross": 837.0,
+      "net": 658.95
+    },
+    {
+      "year": 2012,
+      "half": "ilk",
+      "gross": 886.5,
+      "net": 701.13
+    },
+    {
+      "year": 2012,
+      "half": "ikinci",
+      "gross": 940.5,
+      "net": 739.79
+    },
+    {
+      "year": 2013,
+      "half": "ilk",
+      "gross": 978.6,
+      "net": 773.01
+    },
+    {
+      "year": 2013,
+      "half": "ikinci",
+      "gross": 1021.5,
+      "net": 803.68
+    },
+    {
+      "year": 2014,
+      "half": "ilk",
+      "gross": 1071.0,
+      "net": 846.0
+    },
+    {
+      "year": 2014,
+      "half": "ikinci",
+      "gross": 1134.0,
+      "net": 891.03
+    },
+    {
+      "year": 2015,
+      "half": "ilk",
+      "gross": 1201.5,
+      "net": 949.07
+    },
+    {
+      "year": 2015,
+      "half": "ikinci",
+      "gross": 1273.5,
+      "net": 1000.54
+    },
+    {
+      "year": 2016,
+      "half": null,
+      "gross": 1647.0,
+      "net": 1300.99
+    },
+    {
+      "year": 2017,
+      "half": null,
+      "gross": 1777.5,
+      "net": 1404.0
+    },
+    {
+      "year": 2018,
+      "half": null,
+      "gross": 2029.5,
+      "net": 1603.0
+    },
+    {
+      "year": 2019,
+      "half": null,
+      "gross": 2558.4,
+      "net": 2020.9
+    },
+    {
+      "year": 2020,
+      "half": null,
+      "gross": 2943.0,
+      "net": 2324.7
+    },
+    {
+      "year": 2021,
+      "half": null,
+      "gross": 3577.5,
+      "net": 2825.9
+    },
+    {
+      "year": 2022,
+      "half": "ilk",
+      "gross": 5004.0,
+      "net": 4253.4
+    },
+    {
+      "year": 2022,
+      "half": "ikinci",
+      "gross": 6471.0,
+      "net": 5500.35
+    },
+    {
+      "year": 2023,
+      "half": "ilk",
+      "gross": 10008.0,
+      "net": 8506.8
+    },
+    {
+      "year": 2023,
+      "half": "ikinci",
+      "gross": 13414.5,
+      "net": 11402.32
+    },
+    {
+      "year": 2024,
+      "half": null,
+      "gross": 20002.5,
+      "net": 17002.12
+    },
+    {
+      "year": 2025,
+      "half": null,
+      "gross": 26005.5,
+      "net": 22104.67
+    },
+    {
+      "year": 2026,
+      "half": null,
+      "gross": 33030.0,
+      "net": 28075.0
+    }
+  ]
+}

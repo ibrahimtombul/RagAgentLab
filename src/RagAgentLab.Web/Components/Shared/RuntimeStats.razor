@@ -1,0 +1,86 @@
+@implements IAsyncDisposable
+
+@* Live process figures. Useful while watching a local model work: the managed heap moves
+   when a corpus is embedded, and the working set shows what hosting this actually costs. *@
+
+<div class="runtime-stats" title="@Tooltip">
+    <span><b>@Format(_managedHeapBytes)</b> heap</span>
+    <span><b>@Format(_workingSetBytes)</b> RSS</span>
+    <span>GC <b>@_gen0</b>/<b>@_gen1</b>/<b>@_gen2</b></span>
+    <span><b>@_threadCount</b> iş parçacığı</span>
+</div>
+
+@code {
+    private const string Tooltip =
+        "heap: yönetilen bellek · RSS: işletim sisteminden alınan toplam bellek · " +
+        "GC: 0/1/2 nesil toplama sayıları · iş parçacığı: süreçteki thread sayısı";
+
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(2);
+
+    private readonly CancellationTokenSource _cancellation = new();
+    private long _managedHeapBytes;
+    private long _workingSetBytes;
+    private int _gen0;
+    private int _gen1;
+    private int _gen2;
+    private int _threadCount;
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        Sample();
+        await Task.CompletedTask;
+        _ = RefreshLoopAsync();
+    }
+
+    /// <summary>
+    /// Polls on a timer rather than reacting to events: there is nothing to subscribe to, and
+    /// a two-second cadence is frequent enough to watch embedding move the heap without the
+    /// figures flickering too fast to read.
+    /// </summary>
+    private async Task RefreshLoopAsync()
+    {
+        using var timer = new PeriodicTimer(RefreshInterval);
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_cancellation.Token))
+            {
+                Sample();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The circuit is going away.
+        }
+    }
+
+    private void Sample()
+    {
+        // forceFullCollection: false - reading the counter must not itself trigger a collection
+        // and change the thing being measured.
+        _managedHeapBytes = GC.GetTotalMemory(forceFullCollection: false);
+        _gen0 = GC.CollectionCount(0);
+        _gen1 = GC.CollectionCount(1);
+        _gen2 = GC.CollectionCount(2);
+
+        // Read from the process rather than Environment.WorkingSet, which under-reports on
+        // macOS - it returned 12 MB for a process actually holding an order of magnitude more.
+        using var process = System.Diagnostics.Process.GetCurrentProcess();
+        _workingSetBytes = process.WorkingSet64;
+        _threadCount = process.Threads.Count;
+    }
+
+    private static string Format(long bytes) =>
+        bytes >= 1024L * 1024 * 1024
+            ? $"{bytes / (1024d * 1024 * 1024):F1} GB"
+            : $"{bytes / (1024d * 1024):F0} MB";
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        await _cancellation.CancelAsync();
+        _cancellation.Dispose();
+    }
+}

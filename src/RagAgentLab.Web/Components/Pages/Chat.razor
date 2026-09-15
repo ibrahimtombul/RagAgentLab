@@ -1,0 +1,165 @@
+@page "/"
+@rendermode InteractiveServer
+@implements IDisposable
+@inject IAgent Agent
+@inject KnowledgeBaseState KnowledgeBase
+@inject KnowledgeBaseWriter KnowledgeBaseWriter
+@inject IJSRuntime JS
+@inject ILogger<Chat> Logger
+
+<PageTitle>RagAgentLab</PageTitle>
+
+<div class="app">
+    <header class="app-header">
+        <button type="button" class="menu-button" @onclick="ToggleMenu"
+                aria-expanded="@_menuOpen" aria-controls="app-menu" aria-label="Menü">
+            <span></span><span></span><span></span>
+        </button>
+
+        <div class="app-title">
+            <h1>RagAgentLab</h1>
+            <p class="subtitle">Kuzey Yazılım A.Ş. İK asistanı &mdash; yerel model, araç kullanan ajan</p>
+        </div>
+
+        <div class="header-right">
+            <div class="status @StatusCssClass">@StatusText</div>
+            <RuntimeStats />
+        </div>
+    </header>
+
+    @if (_menuOpen)
+    {
+        <nav class="menu" id="app-menu">
+            <div class="menu-section">
+                <h2>Örnek sorular</h2>
+                @foreach (var suggestion in Suggestions)
+                {
+                    <button type="button" class="menu-item" disabled="@IsBusy"
+                            @onclick="() => SendFromMenuAsync(suggestion)">@suggestion</button>
+                }
+            </div>
+
+            <div class="menu-section">
+                <h2>Bilgi öğretme</h2>
+                <p class="menu-note">
+                    <code>/öğren</code> veya <code>/ogren</code> ile başlayan bir mesaj,
+                    bilgi tabanına kalıcı olarak yazılır.
+                </p>
+                <button type="button" class="menu-item" disabled="@IsBusy"
+                        @onclick="() => FillInputAsync(TeachExample)">@TeachExample</button>
+            </div>
+        </nav>
+    }
+
+    <div class="led-stage">
+        <AndroidLed State="LedState" Size="AndroidLedSize.Large" />
+    </div>
+
+    <div class="messages" @ref="_messagesElement">
+        @if (_turns.Count == 0)
+        {
+            <div class="empty">
+                <p>Şirket politikaları hakkında soru sorun. Ajan hangi aracı kullanacağına kendisi karar verir.</p>
+                <p class="hint">Örnek sorular için soldaki menüyü açın.</p>
+            </div>
+        }
+
+        @foreach (var turn in _turns)
+        {
+            <div class="turn @(turn.Role == ConversationRole.User ? "user" : "assistant")">
+                <div class="bubble @(turn.IsSystemNote ? "system" : null)">
+                    @if (turn.ToolCalls.Count > 0)
+                    {
+                        <div class="tools">
+                            @foreach (var call in turn.ToolCalls)
+                            {
+                                <div class="tool @(call.Result is null ? "running" : "done")">
+                                    <div class="tool-head">
+                                        <span class="tool-name">@call.Tool</span>
+                                        <span class="tool-args">@call.Arguments</span>
+                                        @if (call.Result is not null)
+                                        {
+                                            <span class="tool-time">@call.Milliseconds.ToString("F0") ms</span>
+                                        }
+                                    </div>
+
+                                    @if (call.Retrievals.Count > 0)
+                                    {
+                                        <button type="button" class="tool-toggle"
+                                                @onclick="() => call.IsExpanded = !call.IsExpanded">
+                                            @(call.IsExpanded ? "▾" : "▸") arama detayı
+                                        </button>
+                                    }
+
+                                    @if (call.IsExpanded)
+                                    {
+                                        @foreach (var retrieval in call.Retrievals)
+                                        {
+                                            <div class="retrieval">
+                                                <div class="retrieval-query">
+                                                    <span>
+                                                        aranan: "@retrieval.Query"
+                                                        @if (retrieval.DiscardedBelowThreshold > 0)
+                                                        {
+                                                            <em class="discarded">
+                                                                · @retrieval.DiscardedBelowThreshold eşleşme alaka eşiğinin altında kaldı
+                                                            </em>
+                                                        }
+                                                    </span>
+                                                    <span class="tool-time">@retrieval.Duration.TotalMilliseconds.ToString("F0") ms</span>
+                                                </div>
+
+                                                @if (retrieval.Hits.Count == 0)
+                                                {
+                                                    <div class="hit-text">Eşiği geçen sonuç yok — bu bilgi dokümanlarda bulunmuyor.</div>
+                                                }
+                                                @foreach (var hit in retrieval.Hits)
+                                                {
+                                                    <div class="hit">
+                                                        <span class="hit-score">@hit.Score.ToString("F3")</span>
+                                                        <span class="hit-source">@hit.Chunk.SourceName</span>
+                                                        <span class="hit-chunk">chunk @hit.Chunk.ChunkIndex</span>
+                                                        <div class="hit-text">@hit.Chunk.Text</div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    }
+                                    else if (call.Result is not null)
+                                    {
+                                        <div class="tool-result">@call.Result</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @if (turn.Content.Length > 0)
+                    {
+                        <div class="text">@turn.Content</div>
+                    }
+                    else if (turn.IsStreaming && turn.ToolCalls.Count == 0)
+                    {
+                        <div class="thinking"><span></span><span></span><span></span></div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <footer class="composer">
+        <textarea @bind="_input" @bind:event="oninput" @onkeyup="OnKeyUpAsync"
+                  placeholder="Sorunuzu yazın… (Enter gönderir, Shift+Enter satır atlar)"
+                  rows="1" disabled="@(!CanSend && !IsBusy)"></textarea>
+
+        @if (IsBusy)
+        {
+            <button type="button" class="stop" @onclick="Cancel">Durdur</button>
+        }
+        else
+        {
+            <button type="button" class="send" disabled="@(!CanSend || string.IsNullOrWhiteSpace(_input))"
+                    @onclick="() => SendAsync(_input)">Gönder</button>
+        }
+    </footer>
+</div>

@@ -1,0 +1,60 @@
+@* A small ring that reports what the assistant is doing, in the spirit of the temple LED
+   android characters wear in Detroit: Become Human — steady blue while idle, an agitated
+   yellow arc while thinking, red when something has gone wrong. Drawn from scratch as an
+   SVG ring rather than copied from the game.
+
+   Shaded as emitted light rather than as an object. A radial gradient in user space runs
+   across the stroke width, so the band has a white-hot core that bleeds outwards into
+   saturated colour and fades at both edges — the way a lit filament looks, rather than a
+   metal band catching a highlight. An earlier version used black stops for the edges, which
+   on a dark page turned the ring into something that read as brushed steel.
+
+   There is no cast shadow and no bezel for the same reason: the thing being drawn is a lamp.
+   The glow lives on its own blurred circle behind the band rather than as a filter on the
+   band itself, which would smear the shading it is meant to show off. *@
+
+<div class="led led-@State.ToString().ToLowerInvariant() led-@Size.ToString().ToLowerInvariant()"
+     role="status" aria-label="@Label" title="@Label">
+    <svg viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+        <defs>
+            <radialGradient id="@_bandGradientId" gradientUnits="userSpaceOnUse" cx="20" cy="20" r="20">
+                <stop offset="0.39" stop-color="currentColor" stop-opacity="0" />
+                <stop offset="0.46" stop-color="currentColor" stop-opacity="0.85" />
+                <stop offset="0.51" stop-color="currentColor" />
+                <stop offset="0.535" stop-color="#fff" stop-opacity="0.60" />
+                <stop offset="0.56" stop-color="currentColor" />
+                <stop offset="0.62" stop-color="currentColor" stop-opacity="0.85" />
+                <stop offset="0.70" stop-color="currentColor" stop-opacity="0" />
+            </radialGradient>
+
+        </defs>
+
+        <circle class="led-halo" cx="20" cy="20" r="13" />
+        <circle class="led-band" cx="20" cy="20" r="13" stroke="url(#@_bandGradientId)" />
+        <circle class="led-arc" cx="20" cy="20" r="13" />
+    </svg>
+</div>
+
+@code {
+    // The gradient is referenced by id, so two rings on one page would otherwise share - and
+    // fight over - the same definition.
+    private readonly string _instanceId = Guid.NewGuid().ToString("N")[..8];
+
+    private string _bandGradientId => $"led-band-{_instanceId}";
+
+    /// <summary>What the assistant is currently doing.</summary>
+    [Parameter]
+    public AndroidLedState State { get; set; } = AndroidLedState.Idle;
+
+    /// <summary>How large to draw the ring.</summary>
+    [Parameter]
+    public AndroidLedSize Size { get; set; } = AndroidLedSize.Small;
+
+    /// <summary>Text announced to screen readers and shown on hover.</summary>
+    private string Label => State switch
+    {
+        AndroidLedState.Processing => "İşleniyor",
+        AndroidLedState.Error => "Hata",
+        _ => "Hazır",
+    };
+}
