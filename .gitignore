@@ -481,8 +481,6 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 
-# Local dev server config used by the preview tooling
-.claude/launch.json
 
 # Local vector store database
 *.db
