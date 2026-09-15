@@ -81,6 +81,52 @@ public sealed class MinimumWageTool
         return string.Join(" ", matches.Select(Describe));
     }
 
+    /// <summary>Expresses a salary as a multiple of the minimum wage.</summary>
+    /// <param name="salary">The salary to compare, in Turkish lira.</param>
+    /// <param name="basis">Whether to compare against the net or the gross minimum wage.</param>
+    /// <param name="year">Optional year; defaults to the one in force now.</param>
+    /// <returns>The comparison, or a human-readable error.</returns>
+    [KernelFunction("compare_salary_to_minimum_wage")]
+    [Description("Compares a salary to the statutory minimum wage and returns the ratio. " +
+                 "Use this whenever someone asks how their salary compares to the minimum wage, " +
+                 "or how many times the minimum wage they earn. Compares against the NET minimum " +
+                 "wage by default, which is what such comparisons normally mean. Do the comparison " +
+                 "with this tool rather than working the ratio out yourself.")]
+    public string CompareSalaryToMinimumWage(
+        [Description("The salary to compare, in Turkish lira, for example 64000.")]
+        double salary,
+        [Description("Optional. 'net' (the default) or 'brut'.")]
+        string basis = "net",
+        [Description("Optional calendar year. Leave empty for the wage in force right now.")]
+        int? year = null)
+    {
+        if (salary <= 0)
+        {
+            return "ERROR: Maaş sıfırdan büyük olmalı.";
+        }
+
+        var entries = _entries.Value;
+        var maxYear = entries.Max(e => e.Year);
+        var requestedYear = year ?? Math.Min(DateTime.Today.Year, maxYear);
+
+        // The last period of a year is the one still in force at the end of it, which is what
+        // "the minimum wage for <year>" means once the year is over.
+        var entry = entries.LastOrDefault(e => e.Year == requestedYear);
+        if (entry is null)
+        {
+            return $"ERROR: {requestedYear} yılı için kayıt yok. " +
+                   $"Kapsanan aralık: {entries.Min(e => e.Year)}-{maxYear}.";
+        }
+
+        var useGross = basis.Trim().StartsWith("br", StringComparison.OrdinalIgnoreCase);
+        var reference = useGross ? entry.Gross : entry.Net;
+        var label = useGross ? "brüt" : "net";
+        var ratio = (decimal)salary / reference;
+
+        return $"{Format((decimal)salary)} TL, {requestedYear} yılı {label} asgari ücretinin " +
+               $"({Format(reference)} TL) {ratio.ToString("N2", CultureInfo.GetCultureInfo("tr-TR"))} katıdır.";
+    }
+
     /// <summary>Renders one entry as a sentence the model can quote directly.</summary>
     private static string Describe(MinimumWageEntry entry)
     {
@@ -91,7 +137,7 @@ public sealed class MinimumWageTool
             _ => $"{entry.Year} yılında",
         };
 
-        return $"{period} aylık asgari ücret brüt {Format(entry.Gross)} TL, net {Format(entry.Net)} TL.";
+        return $"{period} aylık asgari ücret net {Format(entry.Net)} TL, brüt {Format(entry.Gross)} TL.";
     }
 
     private static string Format(decimal amount) =>
