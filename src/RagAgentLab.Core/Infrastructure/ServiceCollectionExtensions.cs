@@ -25,14 +25,9 @@ public static class ServiceCollectionExtensions
     /// <param name="services">The service collection to add to.</param>
     /// <param name="configuration">Application configuration (appsettings.json + environment variables).</param>
     /// <returns>The same collection, for chaining.</returns>
-    /// <param name="loggerFactory">
-    /// Used by the pieces that must be constructed eagerly here (the Semantic Kernel client),
-    /// which therefore cannot take an injected logger.
-    /// </param>
     public static IServiceCollection AddRagAgentLab(
         this IServiceCollection services,
-        IConfiguration configuration,
-        ILoggerFactory loggerFactory)
+        IConfiguration configuration)
     {
         services
             .AddOptions<OllamaOptions>()
@@ -58,7 +53,7 @@ public static class ServiceCollectionExtensions
             httpClient.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
         });
 
-        AddSemanticKernel(services, configuration, loggerFactory);
+        AddSemanticKernel(services, configuration);
 
         services
             .AddOptions<QdrantOptions>()
@@ -113,36 +108,39 @@ public static class ServiceCollectionExtensions
     /// the SDK requires a non-empty credential.
     /// </para>
     /// </summary>
-    private static void AddSemanticKernel(
-        IServiceCollection services,
-        IConfiguration configuration,
-        ILoggerFactory loggerFactory)
+    private static void AddSemanticKernel(IServiceCollection services, IConfiguration configuration)
     {
         var options = configuration.GetSection(OllamaOptions.SectionName).Get<OllamaOptions>() ?? new OllamaOptions();
 
-        var compatibilityHandler = new OllamaCompatibilityHandler(
-            loggerFactory.CreateLogger<OllamaCompatibilityHandler>());
+        // The client is registered in DI rather than constructed here so it can take a real
+        // logger; Semantic Kernel resolves it from the container when the connector methods
+        // below are called without an explicit client instance.
+        services.AddSingleton(serviceProvider =>
+        {
+            var compatibilityHandler = new OllamaCompatibilityHandler(
+                serviceProvider.GetRequiredService<ILogger<OllamaCompatibilityHandler>>());
 
-        var openAiClient = new OpenAIClient(
-            new ApiKeyCredential("ollama-does-not-check-this"),
-            new OpenAIClientOptions
-            {
-                Endpoint = new Uri(new Uri(options.Endpoint), "/v1"),
-                NetworkTimeout = TimeSpan.FromSeconds(options.TimeoutSeconds),
-                Transport = new HttpClientPipelineTransport(new HttpClient(compatibilityHandler)
+            return new OpenAIClient(
+                new ApiKeyCredential("ollama-does-not-check-this"),
+                new OpenAIClientOptions
                 {
-                    Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds),
-                }),
-            });
+                    Endpoint = new Uri(new Uri(options.Endpoint), "/v1"),
+                    NetworkTimeout = TimeSpan.FromSeconds(options.TimeoutSeconds),
+                    Transport = new HttpClientPipelineTransport(new HttpClient(compatibilityHandler)
+                    {
+                        Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds),
+                    }),
+                });
+        });
 
         var kernelBuilder = services.AddKernel();
-        kernelBuilder.AddOpenAIChatCompletion(options.ChatModel, openAiClient);
+        kernelBuilder.AddOpenAIChatCompletion(options.ChatModel);
 
         // SKEXP0010: Semantic Kernel still marks the embedding-generator registration as
         // experimental (it moved to Microsoft.Extensions.AI recently). Suppressed here only,
         // rather than project-wide, so any other experimental API still fails the build.
 #pragma warning disable SKEXP0010
-        kernelBuilder.AddOpenAIEmbeddingGenerator(options.EmbeddingModel, openAiClient);
+        kernelBuilder.AddOpenAIEmbeddingGenerator(options.EmbeddingModel);
 #pragma warning restore SKEXP0010
 
         // Tools the agent may call. The plugin name becomes the prefix the model sees

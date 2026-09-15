@@ -79,31 +79,26 @@ public sealed class AgentDemo
             ConsoleUi.Info($"  (expected route: {expectation})");
         }
 
-        var result = await _agent.RunAsync(question, cancellationToken);
+        var result = await _agent.RunAsync(
+            question,
+            new AgentRunOptions
+            {
+                OnToolCallStarted = (tool, arguments) =>
+                    ConsoleUi.Step($"tool call", $"{tool}({arguments})"),
+                OnToolCallCompleted = step =>
+                    ConsoleUi.Step("        result", $"{step.Result} [{step.Duration.TotalMilliseconds:F0} ms]"),
+            },
+            cancellationToken);
 
         if (result.Steps.Count == 0)
         {
-            ConsoleUi.Warn(LooksLikeTextualToolCall(result.Answer)
-                // Worth naming explicitly: a small model sometimes writes the tool call it
-                // wanted to make as ordinary text instead of emitting it through the
-                // tool-calling channel. The SDK never sees a call, so no tool runs and the
-                // raw JSON leaks into the answer. It is a model capability limit, not a bug
-                // in the wiring, and it disappears with a model better trained on tool use.
+            ConsoleUi.Warn(AgentOutputHeuristics.LooksLikeTextualToolCall(result.Answer)
                 ? "The model wrote a tool call as plain text instead of calling the tool."
                 : "The model answered without calling any tool.");
         }
 
         ConsoleUi.Answer(result.Answer);
         ConsoleUi.Info($"({result.Steps.Count} tool call(s), {result.Duration.TotalSeconds:F1}s)");
-    }
-
-    /// <summary>Detects a tool call that the model emitted as text rather than as a real call.</summary>
-    private static bool LooksLikeTextualToolCall(string answer)
-    {
-        var trimmed = answer.TrimStart();
-        return trimmed.StartsWith('{') &&
-               (trimmed.Contains("\"name\"", StringComparison.Ordinal) ||
-                trimmed.Contains("\"function\"", StringComparison.Ordinal));
     }
 
     /// <summary>Lets the reviewer try their own questions; skipped when input is redirected.</summary>

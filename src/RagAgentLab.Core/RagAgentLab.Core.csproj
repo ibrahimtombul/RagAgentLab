@@ -1,14 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Namespaces stay RagAgentLab.* so splitting the project touched no source file. -->
     <RootNamespace>RagAgentLab</RootNamespace>
-    <!-- Allows a net8.0 app to run on a machine that only has the .NET 10 runtime installed. -->
-    <RollForward>Major</RollForward>
-    <!-- Emit XML docs; CS1591 is muted so internal/DTO types do not need full documentation. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
@@ -22,12 +19,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="appsettings.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="data\**\*.*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <!-- The sample corpus travels with the library so every host (console, web) gets it.
+         Content rather than None: Content items flow into the output of projects that
+         reference this library, None items stop at this project. -->
+    <None Remove="data\**" />
+    <Content Include="data\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

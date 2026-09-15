@@ -1,3 +1,6 @@
+// Physically part of the console host, but the namespace deliberately stays
+// RagAgentLab.Infrastructure: a namespace called RagAgentLab.Console would shadow
+// System.Console for every file in this project.
 namespace RagAgentLab.Infrastructure;
 
 /// <summary>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <title>RagAgentLab</title>
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="RagAgentLab.Web.styles.css" />
+    <HeadOutlet />
+</head>
+
+<body>
+    <Routes />
+    <div id="blazor-error-ui">
+        Bir hata oluştu.
+        <a href="" class="reload">Yenile</a>
+        <span class="dismiss">🗙</span>
+    </div>
+    <script src="_framework/blazor.web.js"></script>
+    <script>
+        // Keeps the newest message in view while the answer streams in.
+        window.ragAgentLab = {
+            scrollToBottom: (element) => {
+                if (element) {
+                    element.scrollTop = element.scrollHeight;
+                }
+            }
+        };
+    </script>
+</body>
+
+</html>

@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using RagAgentLab.Demos;
 using RagAgentLab.Infrastructure;
 using RagAgentLab.Ollama;
@@ -20,12 +19,12 @@ var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
     ContentRootPath = AppContext.BaseDirectory,
 });
 
-builder.Services.AddRagAgentLab(builder.Configuration, LoggerFactory.Create(logging =>
-    logging.AddConfiguration(builder.Configuration.GetSection("Logging")).AddConsole()));
+builder.Services.AddRagAgentLab(builder.Configuration);
 builder.Services.AddSingleton<ConnectivityDemo>();
 builder.Services.AddSingleton<RagDemo>();
 builder.Services.AddSingleton<ChunkInspectionDemo>();
 builder.Services.AddSingleton<AgentDemo>();
+builder.Services.AddSingleton<RetrievalInspectionDemo>();
 
 using var host = builder.Build();
 
@@ -57,12 +56,18 @@ try
                 .RunAsync(args.Skip(1).FirstOrDefault(), cancellation.Token);
             break;
 
+        case "retrieve":
+            // Every remaining argument is a question to score.
+            await host.Services.GetRequiredService<RetrievalInspectionDemo>()
+                .RunAsync(args.Skip(1).ToArray(), cancellation.Token);
+            break;
+
         case "chunks":
             await host.Services.GetRequiredService<ChunkInspectionDemo>().RunAsync(cancellation.Token);
             break;
 
         default:
-            ConsoleUi.Error($"Unknown demo '{demo}'. Available: connect, chunks, rag, agent");
+            ConsoleUi.Error($"Unknown demo '{demo}'. Available: connect, chunks, retrieve, rag, agent");
             return 2;
     }
 

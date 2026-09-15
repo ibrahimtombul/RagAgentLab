@@ -1,0 +1,85 @@
+@page "/"
+@rendermode InteractiveServer
+@implements IDisposable
+@inject IAgent Agent
+@inject KnowledgeBaseState KnowledgeBase
+@inject IJSRuntime JS
+@inject ILogger<Chat> Logger
+
+<PageTitle>RagAgentLab</PageTitle>
+
+<div class="app">
+    <header class="app-header">
+        <div>
+            <h1>RagAgentLab</h1>
+            <p class="subtitle">Kuzey Yazılım A.Ş. İK asistanı &mdash; yerel model, araç kullanan ajan</p>
+        </div>
+        <div class="status @StatusCssClass">@StatusText</div>
+    </header>
+
+    <div class="messages" @ref="_messagesElement">
+        @if (_turns.Count == 0)
+        {
+            <div class="empty">
+                <p>Şirket politikaları hakkında soru sorun. Ajan hangi aracı kullanacağına kendisi karar verir.</p>
+                <div class="suggestions">
+                    @foreach (var suggestion in Suggestions)
+                    {
+                        <button type="button" class="suggestion" disabled="@IsBusy"
+                                @onclick="() => SendAsync(suggestion)">@suggestion</button>
+                    }
+                </div>
+            </div>
+        }
+
+        @foreach (var turn in _turns)
+        {
+            <div class="turn @(turn.Role == ConversationRole.User ? "user" : "assistant")">
+                <div class="bubble">
+                    @if (turn.ToolCalls.Count > 0)
+                    {
+                        <div class="tools">
+                            @foreach (var call in turn.ToolCalls)
+                            {
+                                <div class="tool @(call.Result is null ? "running" : "done")">
+                                    <span class="tool-name">@call.Tool</span>
+                                    <span class="tool-args">@call.Arguments</span>
+                                    @if (call.Result is not null)
+                                    {
+                                        <span class="tool-result">@call.Result</span>
+                                        <span class="tool-time">@call.Milliseconds.ToString("F0") ms</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @if (turn.Content.Length > 0)
+                    {
+                        <div class="text">@turn.Content</div>
+                    }
+                    else if (turn.IsStreaming && turn.ToolCalls.Count == 0)
+                    {
+                        <div class="thinking"><span></span><span></span><span></span></div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <footer class="composer">
+        <textarea @bind="_input" @bind:event="oninput" @onkeyup="OnKeyUpAsync"
+                  placeholder="Sorunuzu yazın… (Enter gönderir, Shift+Enter satır atlar)"
+                  rows="1" disabled="@(!CanSend && !IsBusy)"></textarea>
+
+        @if (IsBusy)
+        {
+            <button type="button" class="stop" @onclick="Cancel">Durdur</button>
+        }
+        else
+        {
+            <button type="button" class="send" disabled="@(!CanSend || string.IsNullOrWhiteSpace(_input))"
+                    @onclick="() => SendAsync(_input)">Gönder</button>
+        }
+    </footer>
+</div>

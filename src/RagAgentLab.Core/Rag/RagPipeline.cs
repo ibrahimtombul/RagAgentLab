@@ -31,14 +31,15 @@ public sealed class RagPipeline : IRagPipeline
         - If the answer is not in the context, say so explicitly and do not guess.
         - Never invent numbers, dates, limits or policy names that are not in the context.
         - Cite the source file name in square brackets after each fact, e.g. [01-izin-politikasi.txt].
-        - Answer in the same language as the question.
+        - Always answer in Turkish.
         - Be concise: a few sentences or a short list.
+        - Answer only what was asked; do not pad the answer with unrelated details
+          that happen to appear in the context.
         """;
 
     private const string UngroundedSystemPrompt =
         """
-        You are an HR assistant. Answer the user's question concisely, in the same language
-        as the question.
+        You are an HR assistant. Answer the user's question concisely, in Turkish.
         """;
 
     private readonly IEmbeddingService _embeddingService;
