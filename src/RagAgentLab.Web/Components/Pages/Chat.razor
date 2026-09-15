@@ -16,7 +16,10 @@
             <h1>RagAgentLab</h1>
             <p class="subtitle">Kuzey Yazılım A.Ş. İK asistanı &mdash; yerel model, araç kullanan ajan</p>
         </div>
-        <div class="status @StatusCssClass">@StatusText</div>
+        <div class="header-right">
+            <div class="status @StatusCssClass">@StatusText</div>
+            <RuntimeStats />
+        </div>
     </header>
 
     <div class="messages" @ref="_messagesElement">

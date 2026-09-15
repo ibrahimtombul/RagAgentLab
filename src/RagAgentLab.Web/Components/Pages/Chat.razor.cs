@@ -237,7 +237,8 @@ public partial class Chat : IDisposable
         {
             // ArgumentException appends " (Parameter 'text')" to its message, which is a detail
             // about this code rather than anything the person typing a note needs to read.
-            var reason = ex.Message.Split(" (Parameter", StringComparison.Ordinal)[0];
+            var suffix = ex.Message.IndexOf(" (Parameter", StringComparison.Ordinal);
+            var reason = suffix >= 0 ? ex.Message[..suffix] : ex.Message;
             confirmation.Content = $"Not eklenemedi: {reason}";
             _lastTurnFailed = true;
         }
