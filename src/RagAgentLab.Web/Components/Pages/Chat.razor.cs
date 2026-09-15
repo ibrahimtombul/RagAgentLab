@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using RagAgentLab.Agents;
+using RagAgentLab.Rag;
 using RagAgentLab.Web.Services;
 
 namespace RagAgentLab.Web.Components.Pages;
@@ -114,6 +115,15 @@ public partial class Chat : IDisposable
                 call?.Complete(step.Result, step.Duration.TotalMilliseconds);
                 StateHasChanged();
             }),
+            // A search happens inside a tool call, so it is attached to the call that is
+            // currently running.
+            OnRetrieval = record => InvokeAsync(() =>
+            {
+                var call = answer.ToolCalls.LastOrDefault(c => c.Result is null)
+                           ?? answer.ToolCalls.LastOrDefault();
+                call?.AddRetrieval(record);
+                StateHasChanged();
+            }),
         };
 
         try
@@ -136,6 +146,14 @@ public partial class Chat : IDisposable
         }
         finally
         {
+            // The detail panels open themselves while the agent works, so the search is
+            // visible as it happens, and fold away once the answer has arrived. They stay
+            // one click from being reopened.
+            foreach (var call in answer.ToolCalls)
+            {
+                call.IsExpanded = false;
+            }
+
             answer.IsStreaming = false;
             _cancellation?.Dispose();
             _cancellation = null;
@@ -197,10 +215,23 @@ public partial class Chat : IDisposable
 
         public double Milliseconds { get; private set; }
 
+        /// <summary>Vector searches performed inside this tool call.</summary>
+        public List<RetrievalRecord> Retrievals { get; } = [];
+
+        /// <summary>Whether the search-detail panel is open.</summary>
+        public bool IsExpanded { get; set; }
+
         public void Complete(string result, double milliseconds)
         {
             Result = result;
             Milliseconds = milliseconds;
+        }
+
+        /// <summary>Attaches a search to this call and opens the panel so it is seen live.</summary>
+        public void AddRetrieval(RetrievalRecord record)
+        {
+            Retrievals.Add(record);
+            IsExpanded = true;
         }
     }
 }

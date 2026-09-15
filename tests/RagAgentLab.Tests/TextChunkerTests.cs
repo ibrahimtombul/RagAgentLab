@@ -89,6 +89,22 @@ public sealed class TextChunkerTests
         Assert.All(chunks, chunk => Assert.True(chunk.Length <= 220));
     }
 
+    [Fact]
+    public void Split_DoesNotStartAChunkInTheMiddleOfALine()
+    {
+        // Regression test. A table written one record per line used to be cut mid-line by the
+        // overlap, leaving a chunk that began "yılı ikinci yarı ... net 891,03 TL" — an amount
+        // whose year had been chopped off, sitting directly above the next year's rows. A model
+        // reading that answered a question about 2015 with 2014's figure.
+        var table = string.Join("\n\n", Enumerable.Range(2005, 20)
+            .Select(year => $"{year} yılı asgari ücret: brüt {year * 2},00 TL, net {year},00 TL"));
+
+        var chunks = TextChunker.Split(table, chunkSize: 300, chunkOverlap: 80);
+
+        Assert.True(chunks.Count > 1, "The table should not fit into a single chunk.");
+        Assert.All(chunks, chunk => Assert.Matches(@"^\d{4} yılı", chunk));
+    }
+
     [Theory]
     [InlineData(10, 5)]      // chunk size below the supported minimum
     [InlineData(200, 200)]   // overlap equal to the chunk size

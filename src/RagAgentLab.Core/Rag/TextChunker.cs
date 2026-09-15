@@ -102,7 +102,15 @@ public static class TextChunker
 
     /// <summary>
     /// Returns the trailing <paramref name="overlap"/> characters of a chunk, snapped forward to a
-    /// word boundary so the next chunk does not start in the middle of a word.
+    /// line boundary when there is one and to a word boundary otherwise.
+    /// <para>
+    /// Preferring the line boundary matters for anything written one record per line. A table of
+    /// "2014 yılı ikinci yarı asgari ücret: net 891,03 TL" rows, cut mid-line, leaves the next
+    /// chunk starting at "yılı ikinci yarı ... net 891,03 TL" — an amount with no year attached,
+    /// directly above the 2015 rows. A model reading that chunk answered a question about 2015
+    /// with 2014's figure, and was not wrong to: the year had been chopped off by the chunker.
+    /// Snapping to the newline keeps every line whole.
+    /// </para>
     /// </summary>
     private static string TakeOverlap(string chunk, int overlap)
     {
@@ -112,6 +120,13 @@ public static class TextChunker
         }
 
         var tail = chunk[^overlap..];
+
+        var firstNewline = tail.IndexOf('\n');
+        if (firstNewline >= 0)
+        {
+            return tail[(firstNewline + 1)..];
+        }
+
         var firstSpace = tail.IndexOf(' ');
         return firstSpace >= 0 ? tail[(firstSpace + 1)..] : tail;
     }

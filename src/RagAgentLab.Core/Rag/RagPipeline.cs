@@ -74,10 +74,16 @@ public sealed class RagPipeline : IRagPipeline
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(question);
 
+        var stopwatch = Stopwatch.StartNew();
+
         var queryVector = await _embeddingService.EmbedQueryAsync(question, cancellationToken);
         var hits = await _vectorStore.SearchAsync(queryVector, topK ?? _ragOptions.TopK, cancellationToken);
 
+        stopwatch.Stop();
+
         _logger.LogDebug("Retrieved {Count} chunk(s) for '{Question}'.", hits.Count, question);
+        RetrievalTrace.Report(new RetrievalRecord(question, hits, stopwatch.Elapsed));
+
         return hits;
     }
 

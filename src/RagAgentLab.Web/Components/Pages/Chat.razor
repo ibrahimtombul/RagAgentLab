@@ -42,12 +42,47 @@
                             @foreach (var call in turn.ToolCalls)
                             {
                                 <div class="tool @(call.Result is null ? "running" : "done")">
-                                    <span class="tool-name">@call.Tool</span>
-                                    <span class="tool-args">@call.Arguments</span>
-                                    @if (call.Result is not null)
+                                    <div class="tool-head">
+                                        <span class="tool-name">@call.Tool</span>
+                                        <span class="tool-args">@call.Arguments</span>
+                                        @if (call.Result is not null)
+                                        {
+                                            <span class="tool-time">@call.Milliseconds.ToString("F0") ms</span>
+                                        }
+                                    </div>
+
+                                    @if (call.Retrievals.Count > 0)
                                     {
-                                        <span class="tool-result">@call.Result</span>
-                                        <span class="tool-time">@call.Milliseconds.ToString("F0") ms</span>
+                                        <button type="button" class="tool-toggle"
+                                                @onclick="() => call.IsExpanded = !call.IsExpanded">
+                                            @(call.IsExpanded ? "▾" : "▸") arama detayı
+                                        </button>
+                                    }
+
+                                    @if (call.IsExpanded)
+                                    {
+                                        @foreach (var retrieval in call.Retrievals)
+                                        {
+                                            <div class="retrieval">
+                                                <div class="retrieval-query">
+                                                    aranan: "@retrieval.Query"
+                                                    <span class="tool-time">@retrieval.Duration.TotalMilliseconds.ToString("F0") ms</span>
+                                                </div>
+                                                @foreach (var hit in retrieval.Hits)
+                                                {
+                                                    <div class="hit">
+                                                        <span class="hit-score">@hit.Score.ToString("F3")</span>
+                                                        <span class="hit-source">@hit.Chunk.SourceName</span>
+                                                        <span class="hit-chunk">chunk @hit.Chunk.ChunkIndex</span>
+                                                        <div class="hit-text">@hit.Chunk.Text</div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    }
+                                    else if (call.Result is not null)
+                                    {
+                                        <div class="tool-result">@call.Result</div>
                                     }
                                 </div>
                             }

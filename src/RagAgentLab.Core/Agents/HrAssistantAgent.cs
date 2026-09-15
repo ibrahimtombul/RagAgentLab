@@ -7,6 +7,7 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using RagAgentLab.Configuration;
+using RagAgentLab.Rag;
 
 namespace RagAgentLab.Agents;
 
@@ -97,6 +98,7 @@ public sealed class HrAssistantAgent : IAgent
         using var trace = ToolCallTraceFilter.BeginScope(
             options?.OnToolCallStarted,
             options?.OnToolCallCompleted);
+        using var retrievalTrace = RetrievalTrace.BeginScope(options?.OnRetrieval);
 
         var history = new ChatHistory();
         history.AddSystemMessage(SystemPrompt);
@@ -141,6 +143,7 @@ public sealed class HrAssistantAgent : IAgent
         using var trace = ToolCallTraceFilter.BeginScope(
             options?.OnToolCallStarted,
             options?.OnToolCallCompleted);
+        using var retrievalTrace = RetrievalTrace.BeginScope(options?.OnRetrieval);
 
         var history = BuildHistory(conversation);
         var answer = new StringBuilder();

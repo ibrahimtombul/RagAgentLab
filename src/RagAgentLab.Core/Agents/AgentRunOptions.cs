@@ -1,3 +1,5 @@
+using RagAgentLab.Rag;
+
 namespace RagAgentLab.Agents;
 
 /// <summary>
@@ -12,4 +14,11 @@ public sealed class AgentRunOptions
 
     /// <summary>Called once a tool has returned, with the recorded step.</summary>
     public Action<AgentStep>? OnToolCallCompleted { get; init; }
+
+    /// <summary>
+    /// Called for every vector search performed during the run, with the matched chunks and
+    /// their similarity scores. This is what a host needs to show why an answer came out the
+    /// way it did.
+    /// </summary>
+    public Action<RetrievalRecord>? OnRetrieval { get; init; }
 }
