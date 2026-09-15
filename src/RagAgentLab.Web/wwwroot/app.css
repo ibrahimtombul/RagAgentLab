@@ -450,3 +450,91 @@ html, body {
 @media (max-width: 620px) {
     .runtime-stats { display: none; }
 }
+
+/* ---- hamburger menu ---- */
+.menu-button {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    align-content: center;
+    gap: 4px;
+    padding: 0 7px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--panel);
+    cursor: pointer;
+}
+
+.menu-button span {
+    display: block;
+    height: 1.5px;
+    background: var(--text);
+    opacity: 0.75;
+    border-radius: 2px;
+}
+
+.menu-button:hover { border-color: var(--accent); }
+.menu-button:hover span { background: var(--accent); opacity: 1; }
+
+.menu {
+    margin-top: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--panel);
+    display: grid;
+    gap: 16px;
+}
+
+.menu-section h2 {
+    margin: 0 0 8px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.menu-item {
+    display: block;
+    width: 100%;
+    margin-bottom: 6px;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.menu-item:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.menu-item:disabled { opacity: 0.45; cursor: default; }
+
+.menu-note { margin: 0 0 8px; font-size: 12.5px; color: var(--muted); }
+.menu-note code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--tool-bg);
+    font-family: var(--mono);
+    font-size: 11.5px;
+}
+
+/* ---- the ring as a feature at the top ---- */
+.led-stage {
+    display: grid;
+    place-items: center;
+    padding: 20px 0 6px;
+}
+
+.led-large { width: 84px; height: 84px; }
+.led-large circle { stroke-width: 2.2; }
+.led-large .led-arc { filter: drop-shadow(0 0 10px currentColor); }
+
+@media (max-width: 620px) {
+    .led-large { width: 64px; height: 64px; }
+    .led-stage { padding: 14px 0 4px; }
+}

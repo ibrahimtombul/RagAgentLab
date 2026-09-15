@@ -3,7 +3,8 @@
    yellow arc while thinking, red when something has gone wrong. Drawn from scratch as an
    SVG ring rather than copied from the game. *@
 
-<div class="led led-@State.ToString().ToLowerInvariant()" role="status" aria-label="@Label" title="@Label">
+<div class="led led-@State.ToString().ToLowerInvariant() led-@Size.ToString().ToLowerInvariant()"
+     role="status" aria-label="@Label" title="@Label">
     <svg viewBox="0 0 28 28" aria-hidden="true" focusable="false">
         <circle class="led-track" cx="14" cy="14" r="10" />
         <circle class="led-arc" cx="14" cy="14" r="10" />
@@ -14,6 +15,10 @@
     /// <summary>What the assistant is currently doing.</summary>
     [Parameter]
     public AndroidLedState State { get; set; } = AndroidLedState.Idle;
+
+    /// <summary>How large to draw the ring.</summary>
+    [Parameter]
+    public AndroidLedSize Size { get; set; } = AndroidLedSize.Small;
 
     /// <summary>Text announced to screen readers and shown on hover.</summary>
     private string Label => State switch

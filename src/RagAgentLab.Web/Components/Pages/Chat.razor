@@ -11,33 +11,55 @@
 
 <div class="app">
     <header class="app-header">
-        <AndroidLed State="LedState" />
+        <button type="button" class="menu-button" @onclick="ToggleMenu"
+                aria-expanded="@_menuOpen" aria-controls="app-menu" aria-label="Menü">
+            <span></span><span></span><span></span>
+        </button>
+
         <div class="app-title">
             <h1>RagAgentLab</h1>
             <p class="subtitle">Kuzey Yazılım A.Ş. İK asistanı &mdash; yerel model, araç kullanan ajan</p>
         </div>
+
         <div class="header-right">
             <div class="status @StatusCssClass">@StatusText</div>
             <RuntimeStats />
         </div>
     </header>
 
+    @if (_menuOpen)
+    {
+        <nav class="menu" id="app-menu">
+            <div class="menu-section">
+                <h2>Örnek sorular</h2>
+                @foreach (var suggestion in Suggestions)
+                {
+                    <button type="button" class="menu-item" disabled="@IsBusy"
+                            @onclick="() => SendFromMenuAsync(suggestion)">@suggestion</button>
+                }
+            </div>
+
+            <div class="menu-section">
+                <h2>Bilgi öğretme</h2>
+                <p class="menu-note">
+                    <code>/ogren</code> ile başlayan bir mesaj, bilgi tabanına kalıcı olarak yazılır.
+                </p>
+                <button type="button" class="menu-item" disabled="@IsBusy"
+                        @onclick="() => FillInputAsync(TeachExample)">@TeachExample</button>
+            </div>
+        </nav>
+    }
+
+    <div class="led-stage">
+        <AndroidLed State="LedState" Size="AndroidLedSize.Large" />
+    </div>
+
     <div class="messages" @ref="_messagesElement">
         @if (_turns.Count == 0)
         {
             <div class="empty">
                 <p>Şirket politikaları hakkında soru sorun. Ajan hangi aracı kullanacağına kendisi karar verir.</p>
-                <p class="hint">
-                    Yeni bir bilgi öğretmek için <code>/ogren</code> ile başlayın &mdash;
-                    örneğin <code>/ogren Şirket aracı talepleri Filo birimine yapılır.</code>
-                </p>
-                <div class="suggestions">
-                    @foreach (var suggestion in Suggestions)
-                    {
-                        <button type="button" class="suggestion" disabled="@IsBusy"
-                                @onclick="() => SendAsync(suggestion)">@suggestion</button>
-                    }
-                </div>
+                <p class="hint">Örnek sorular için soldaki menüyü açın.</p>
             </div>
         }
 

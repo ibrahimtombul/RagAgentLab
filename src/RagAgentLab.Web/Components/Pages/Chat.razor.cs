@@ -30,11 +30,15 @@ public partial class Chat : IDisposable
     /// <summary>Prefix that turns a chat message into a write to the knowledge base.</summary>
     private const string TeachCommand = "/ogren";
 
+    /// <summary>Shown in the menu so the teach command has a concrete example to copy.</summary>
+    private const string TeachExample = "/ogren Şirket aracı talepleri Filo birimine yapılır.";
+
     private readonly List<ChatTurn> _turns = [];
     private ElementReference _messagesElement;
     private CancellationTokenSource? _cancellation;
     private string _input = string.Empty;
     private bool _lastTurnFailed;
+    private bool _menuOpen;
 
     /// <summary>True while an answer is being generated.</summary>
     private bool IsBusy => _cancellation is not null;
@@ -253,6 +257,28 @@ public partial class Chat : IDisposable
             StateHasChanged();
             await ScrollToBottomAsync();
         }
+    }
+
+    /// <summary>Opens or closes the menu holding the example questions.</summary>
+    private void ToggleMenu() => _menuOpen = !_menuOpen;
+
+    /// <summary>Sends an example question and closes the menu behind it.</summary>
+    private async Task SendFromMenuAsync(string question)
+    {
+        _menuOpen = false;
+        await SendAsync(question);
+    }
+
+    /// <summary>
+    /// Puts an example in the input box instead of sending it. The teach command writes to the
+    /// knowledge base, so it is offered as something to edit rather than something to fire.
+    /// </summary>
+    private async Task FillInputAsync(string text)
+    {
+        _menuOpen = false;
+        _input = text;
+        StateHasChanged();
+        await Task.CompletedTask;
     }
 
     /// <summary>Cancels the in-flight generation.</summary>
