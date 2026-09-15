@@ -36,7 +36,10 @@ public sealed class HrAssistantAgent : IAgent
     // that vague and the context is thin - an answer that began in Turkish and finished in
     // Chinese is what prompted this change.
     //
-    // Prompt length is not a free parameter here. Adding a single four-line rule about the
+    // Rule 6 names the file extension because the model was observed generalising "cite in
+    // square brackets" to tool names, answering "let's check the policies. [hr-search_hr_policy]"
+    // without calling anything. The wording was tightened rather than a rule added, because
+    // prompt length is not a free parameter here. Adding a single four-line rule about the
     // order in which tools should be chained made qwen2.5:7b stop calling tools altogether on
     // one of the demo questions — the endpoint returned an empty message with
     // finish_reason "stop" instead of a tool call. Guidance about how a specific tool should
@@ -54,8 +57,8 @@ public sealed class HrAssistantAgent : IAgent
         3. Dates and working-day deadlines: call get_today and add_business_days.
         4. Answer only after the tools have returned, using their output.
         5. Always reply in Turkish, as plain text. Never write a tool call as text.
-        6. Cite the policy file name in square brackets. If the tools did not answer the
-           question, say so rather than guessing.
+        6. Cite the source file name — always ending in .txt — in square brackets, never a
+           tool name. If the tools did not answer, say so rather than guessing.
         7. Keep the answer to a few sentences.
         """;
 
@@ -178,9 +181,16 @@ public sealed class HrAssistantAgent : IAgent
         }
     }
 
-    /// <summary>Fully qualified names of the tools registered on the kernel.</summary>
+    /// <summary>
+    /// Names of the tools registered on the kernel, in both the bare form and the
+    /// <c>plugin-function</c> form the model sees in the schema, since it echoes either.
+    /// </summary>
     private IReadOnlyList<string> ToolNames => _kernel.Plugins
-        .SelectMany(plugin => plugin.Select(function => function.Name))
+        .SelectMany(plugin => plugin.SelectMany(function => new[]
+        {
+            function.Name,
+            $"{plugin.Name}-{function.Name}",
+        }))
         .ToArray();
 
     /// <summary>

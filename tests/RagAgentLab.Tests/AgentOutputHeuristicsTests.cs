@@ -9,13 +9,19 @@ namespace RagAgentLab.Tests;
 public sealed class AgentOutputHeuristicsTests
 {
     private static readonly string[] ToolNames =
-        ["search_hr_policy", "calculate", "get_today", "add_business_days"];
+    [
+        "search_hr_policy", "calculate", "get_today", "add_business_days", "get_minimum_wage",
+        "hr-search_hr_policy", "calculator-calculate", "wage-get_minimum_wage",
+    ];
 
     [Theory]
     [InlineData("search_hr_policy({\"question\": \"Güncel asgari ücret nedir?\"})")]
     [InlineData("{\"name\":\"hr-search_hr_policy\",\"parameters\":{\"question\":\"Yurt dışı\"}}")]
     [InlineData("{\"function\": {\"name\": \"calculate\"}, \"arguments\": \"{}\"}")]
     [InlineData("  calculate({\"expression\": \"750 * 12\"})  ")]
+    // Announced rather than called, with the tool cited as though it were a source.
+    [InlineData("Asgari ücretler hakkında güncel bilgiye ulaşmak için iş politikalarımızı kontrol edelim. [hr-search_hr_policy]")]
+    [InlineData("Güncel asgari ücret bilgileri için arama yapalım. [wage-get_minimum_wage]")]
     public void LooksLikeTextualToolCall_DetectsCallsWrittenAsText(string answer) =>
         Assert.True(AgentOutputHeuristics.LooksLikeTextualToolCall(answer, ToolNames));
 
@@ -23,6 +29,8 @@ public sealed class AgentOutputHeuristicsTests
     [InlineData("Yurt dışından yılda en fazla 20 iş günü çalışabilirsiniz.")]
     [InlineData("Aylık 750 TL internet katkısı bir yılda toplam 9000 TL eder.")]
     [InlineData("Bu bilgi politika dokümanlarında yer almıyor.")]
+    // A real citation of a real source file must not be mistaken for an announced tool call.
+    [InlineData("Yurt içi günlük yemek harcırahı 900 TL'dir. [03-masraf-ve-seyahat-politikasi.txt]")]
     [InlineData("")]
     [InlineData("   ")]
     public void LooksLikeTextualToolCall_AcceptsOrdinaryAnswers(string answer) =>

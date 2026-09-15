@@ -58,11 +58,26 @@ public static class AgentOutputHeuristics
             return true;
         }
 
+        if (toolNames is null)
+        {
+            return false;
+        }
+
+        var names = toolNames.ToArray();
+
         // The reply is little more than a tool's name.
-        return toolNames is not null &&
-               toolNames.Any(name =>
-                   trimmed.StartsWith(name, StringComparison.OrdinalIgnoreCase) &&
-                   trimmed.Length < name.Length + 200);
+        if (names.Any(name =>
+                trimmed.StartsWith(name, StringComparison.OrdinalIgnoreCase) &&
+                trimmed.Length < name.Length + 200))
+        {
+            return true;
+        }
+
+        // The model announced the call and cited the tool as though it were a source:
+        // "Güncel asgari ücret bilgileri için arama yapalım. [wage-get_minimum_wage]".
+        // The instruction to cite sources in square brackets appears to be what it is
+        // generalising from; either way no tool ran, so the answer is not grounded in anything.
+        return names.Any(name => trimmed.Contains($"[{name}]", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>The notice appended to such a reply so the user sees what happened.</summary>
