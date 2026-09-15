@@ -11,7 +11,7 @@ namespace RagAgentLab.Demos;
 /// <summary>
 /// Draws the corpus as a two-dimensional map and saves it as an SVG.
 /// <para>
-/// "768-dimensional space" is a phrase that explains nothing on its own. This flattens the real
+/// "A thousand-dimensional space" is a phrase that explains nothing on its own. This flattens the real
 /// vectors of the real corpus onto their two principal components, colours each point by the
 /// document it came from, and draws a line from each sample question to the chunks it actually
 /// retrieves. What it shows is the thing retrieval depends on: whether documents form separate
@@ -81,7 +81,7 @@ public sealed class EmbeddingMapDemo
             .Select(projection.Transform)
             .ToArray();
 
-        // Retrieval is computed in the full 768 dimensions, not on the flattened map - the lines
+        // Retrieval is computed in the full embedding space, not on the flattened map - the lines
         // drawn have to show what actually happens, not what the picture suggests.
         var retrievals = questionVectors
             .Select(query => chunkVectors

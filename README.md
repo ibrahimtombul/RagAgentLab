@@ -202,7 +202,7 @@ whatever it is given into a *single* vector: feed it a whole document covering l
 and expenses and you get the blurry average of all three, which matches no question well. Small,
 single-topic slices match sharply.
 
-Each chunk then becomes 768 numbers — its coordinates in a space where texts that mean similar
+Each chunk then becomes 1024 numbers — its coordinates in a space where texts that mean similar
 things end up near each other. Re-running the indexer only embeds chunks whose text has actually
 changed; the fingerprint column is what makes that safe.
 
@@ -218,7 +218,7 @@ flowchart TD
     M -->|"minimum wage"| T4["wage.get_minimum_wage<br/>wage.compare_salary_to_minimum_wage"]
     M -->|"no tool needed"| D["Answer directly"]
 
-    T1 --> R1["Question → 768 numbers"]
+    T1 --> R1["Question → 1024 numbers"]
     R1 --> R2["Cosine similarity<br/>against every chunk"]
     R2 --> R3["Top 3 chunks"]
     R3 --> P["Chunks pasted into the prompt<br/>as context"]
@@ -266,7 +266,7 @@ Every step here is visible in the app: the chat shows the tool call, its argumen
 duration, and the **"arama detayı"** panel underneath expands to the matched file, chunk index,
 similarity score and the matched text.
 
-### What 768 dimensions actually look like
+### What a thousand dimensions actually look like
 
 ![Embedding space](docs/embedding-space.svg)
 
@@ -287,7 +287,7 @@ Two details in that picture are worth knowing:
   Fitting on both together produced a map whose main axis was simply "question or document",
   because the embedding model marks the two with different task prefixes and puts them in
   different regions — every document collapsed into one blob.
-- The lines are computed in the full 768 dimensions, not on the flattened map. A picture that
+- The lines are computed in the full 1024 dimensions, not on the flattened map. A picture that
   invented its own neighbours would be worse than no picture.
 
 ---

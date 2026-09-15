@@ -3,7 +3,8 @@ namespace RagAgentLab.Rag;
 /// <summary>
 /// Projects high-dimensional vectors down to two dimensions so they can be drawn.
 /// <para>
-/// An embedding has 768 numbers in it, which is 768 axes — nothing anyone can picture. Principal
+/// An embedding has a thousand or so numbers in it, which is a thousand axes — nothing anyone can
+/// picture. Principal
 /// component analysis finds the two directions along which the collection of vectors actually
 /// varies the most, and measures every vector along just those two. What is left is a flat map:
 /// distances on it are a shadow of the real distances, but points that sit together on the map
@@ -76,7 +77,7 @@ public static class PrincipalComponentProjector
             }
         }
 
-        // Gram matrix: cheaper than the 768×768 covariance when there are only a few dozen vectors.
+        // Gram matrix: far cheaper than the full d×d covariance when there are only a few dozen vectors.
         var gram = new double[count][];
         for (var i = 0; i < count; i++)
         {
@@ -98,7 +99,7 @@ public static class PrincipalComponentProjector
         var (second, secondValue) = DominantEigenvector(gram, count);
 
         // The Gram matrix works in sample space, so each component has to be carried back into
-        // the 768-dimensional feature space before anything else can be measured against it:
+        // the full feature space before anything else can be measured against it:
         // w = Xcᵀu / √λ.
         return new Projection(
             mean,
