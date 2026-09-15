@@ -34,11 +34,13 @@ public sealed class MinimumWageTool
     /// <param name="half">Optional half of the year for years that changed mid-year.</param>
     /// <returns>The figures, or a human-readable error the model can act on.</returns>
     [KernelFunction("get_minimum_wage")]
-    [Description("Returns the statutory monthly minimum wage in Turkey for a given year, both " +
-                 "gross (brüt) and net. Use this whenever the question is about the minimum wage " +
-                 "(asgari ücret) of a specific year.")]
+    [Description("Returns the statutory monthly minimum wage in Turkey, both gross (brüt) and " +
+                 "net. Use this whenever the question is about the minimum wage (asgari ücret). " +
+                 "Leave the year empty for the wage in force right now - the tool knows today's " +
+                 "date, so do not look it up or guess it.")]
     public string GetMinimumWage(
-        [Description("Calendar year, for example 2015.")] int year,
+        [Description("Calendar year, for example 2015. Leave empty for the current year.")]
+        int? year = null,
         [Description("Optional. 'ilk' for the first half of the year or 'ikinci' for the second, " +
                      "for years where the wage changed mid-year. Leave empty to get every period.")]
         string? half = null)
@@ -48,10 +50,16 @@ public sealed class MinimumWageTool
         var minYear = entries.Min(e => e.Year);
         var maxYear = entries.Max(e => e.Year);
 
-        var matches = entries.Where(entry => entry.Year == year).ToArray();
+        // "Güncel asgari ücret" is the most common way to ask this, and a language model has no
+        // idea what today's date is - left to guess, it reached for a year from its training
+        // data. The tool runs on a machine with a clock, so the current year is resolved here
+        // rather than being something the model has to chain another tool call to discover.
+        var requestedYear = year ?? Math.Min(DateTime.Today.Year, maxYear);
+
+        var matches = entries.Where(entry => entry.Year == requestedYear).ToArray();
         if (matches.Length == 0)
         {
-            return $"ERROR: {year} yılı için kayıt yok. Kapsanan aralık: {minYear}-{maxYear}.";
+            return $"ERROR: {requestedYear} yılı için kayıt yok. Kapsanan aralık: {minYear}-{maxYear}.";
         }
 
         if (!string.IsNullOrWhiteSpace(half))
@@ -63,7 +71,7 @@ public sealed class MinimumWageTool
             if (filtered.Length == 0)
             {
                 return matches.Length == 1
-                    ? $"{year} yılında asgari ücret yıl içinde değişmedi. " + Describe(matches[0])
+                    ? $"{requestedYear} yılında asgari ücret yıl içinde değişmedi. " + Describe(matches[0])
                     : $"ERROR: '{half}' geçersiz. 'ilk' veya 'ikinci' kullanın.";
             }
 
