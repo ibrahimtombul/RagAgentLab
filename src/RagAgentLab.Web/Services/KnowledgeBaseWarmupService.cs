@@ -1,3 +1,4 @@
+using RagAgentLab.Embeddings;
 using RagAgentLab.Rag;
 
 namespace RagAgentLab.Web.Services;
@@ -15,16 +16,19 @@ namespace RagAgentLab.Web.Services;
 public sealed class KnowledgeBaseWarmupService : BackgroundService
 {
     private readonly KnowledgeBaseIngestor _ingestor;
+    private readonly IVectorStore _vectorStore;
     private readonly KnowledgeBaseState _state;
     private readonly ILogger<KnowledgeBaseWarmupService> _logger;
 
     /// <summary>Creates a new instance. Called by the DI container.</summary>
     public KnowledgeBaseWarmupService(
         KnowledgeBaseIngestor ingestor,
+        IVectorStore vectorStore,
         KnowledgeBaseState state,
         ILogger<KnowledgeBaseWarmupService> logger)
     {
         _ingestor = ingestor;
+        _vectorStore = vectorStore;
         _state = state;
         _logger = logger;
     }
@@ -40,7 +44,10 @@ public sealed class KnowledgeBaseWarmupService : BackgroundService
                 "Knowledge base ready: {Documents} document(s), {Chunks} chunk(s) in {Seconds:F1}s.",
                 report.DocumentCount, report.ChunkCount, report.Duration.TotalSeconds);
 
-            _state.MarkReady(report.DocumentCount, report.ChunkCount);
+            // Counted from the store rather than from the report: with a persistent store the
+            // corpus also holds notes added from the chat in earlier runs, which no document
+            // ingestion produced.
+            _state.MarkReady(report.DocumentCount, await _vectorStore.CountAsync(stoppingToken));
         }
         catch (OperationCanceledException)
         {

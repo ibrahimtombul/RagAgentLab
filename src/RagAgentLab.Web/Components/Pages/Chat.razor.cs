@@ -26,6 +26,9 @@ public partial class Chat : IDisposable
         "Eğitim bütçem ne kadar ve bir sonraki yıla devreder mi?",
     ];
 
+    /// <summary>Prefix that turns a chat message into a write to the knowledge base.</summary>
+    private const string TeachCommand = "/ogren";
+
     private readonly List<ChatTurn> _turns = [];
     private ElementReference _messagesElement;
     private CancellationTokenSource? _cancellation;
@@ -77,7 +80,11 @@ public partial class Chat : IDisposable
         }
     }
 
-    /// <summary>Runs one turn: append the question, stream the answer, record tool calls.</summary>
+    /// <summary>
+    /// Runs one turn. A message beginning with <c>/ogren</c> is handled here instead of being
+    /// sent to the agent: teaching writes to the corpus, and that is too consequential to leave
+    /// to a model that might decide to do it on its own.
+    /// </summary>
     private async Task SendAsync(string question)
     {
         if (string.IsNullOrWhiteSpace(question) || !CanSend)
@@ -85,8 +92,16 @@ public partial class Chat : IDisposable
             return;
         }
 
+        var message = question.Trim();
         _input = string.Empty;
-        _turns.Add(new ChatTurn { Role = ConversationRole.User, Content = question.Trim() });
+
+        if (message.StartsWith(TeachCommand, StringComparison.OrdinalIgnoreCase))
+        {
+            await TeachAsync(message[TeachCommand.Length..].Trim());
+            return;
+        }
+
+        _turns.Add(new ChatTurn { Role = ConversationRole.User, Content = message });
 
         var answer = new ChatTurn { Role = ConversationRole.Assistant, IsStreaming = true };
         _turns.Add(answer);
@@ -97,6 +112,7 @@ public partial class Chat : IDisposable
         // The conversation sent to the model excludes the placeholder being streamed into.
         var conversation = _turns
             .Take(_turns.Count - 1)
+            .Where(turn => !turn.IsSystemNote && !turn.ExcludeFromHistory)
             .Select(turn => new ConversationMessage(turn.Role, turn.Content))
             .ToArray();
 
@@ -161,6 +177,44 @@ public partial class Chat : IDisposable
         }
     }
 
+    /// <summary>Writes a note into the knowledge base and reports the result in the transcript.</summary>
+    private async Task TeachAsync(string note)
+    {
+        _turns.Add(new ChatTurn
+        {
+            Role = ConversationRole.User,
+            Content = $"{TeachCommand} {note}",
+            ExcludeFromHistory = true,
+        });
+
+        var confirmation = new ChatTurn { Role = ConversationRole.Assistant, IsSystemNote = true };
+        _turns.Add(confirmation);
+
+        try
+        {
+            var result = await KnowledgeBaseWriter.AddNoteAsync(note);
+            confirmation.Content =
+                $"Öğrenildi. Not \"{result.SourceName}\" olarak {result.ChunkCount} parça hâlinde " +
+                "bilgi tabanına yazıldı ve bundan sonraki sorularda kaynak olarak kullanılabilir.";
+
+            KnowledgeBase.NoteAdded(result.ChunkCount);
+        }
+        catch (ArgumentException ex)
+        {
+            confirmation.Content = $"Not eklenemedi: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to add a note to the knowledge base.");
+            confirmation.Content = $"Not eklenemedi: {ex.Message}";
+        }
+        finally
+        {
+            StateHasChanged();
+            await ScrollToBottomAsync();
+        }
+    }
+
     /// <summary>Cancels the in-flight generation.</summary>
     private void Cancel() => _cancellation?.Cancel();
 
@@ -194,6 +248,23 @@ public partial class Chat : IDisposable
         public string Content { get; set; } = string.Empty;
 
         public bool IsStreaming { get; set; }
+
+        /// <summary>
+        /// True for messages the application produced itself, such as the confirmation after a
+        /// note is stored. They are shown differently and are never sent back to the model.
+        /// </summary>
+        public bool IsSystemNote { get; init; }
+
+        /// <summary>
+        /// True for turns that are kept out of the prompt.
+        /// <para>
+        /// A <c>/ogren</c> command is shown in the transcript so the user can see what they
+        /// taught, but it must not travel to the model as conversation history: the note text
+        /// would then sit in the prompt and the next answer could come straight out of it,
+        /// making retrieval look like it works when it has not even been consulted.
+        /// </para>
+        /// </summary>
+        public bool ExcludeFromHistory { get; init; }
 
         public List<ToolCallView> ToolCalls { get; } = [];
     }

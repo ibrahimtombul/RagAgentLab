@@ -49,6 +49,14 @@ public sealed class KnowledgeBaseState
         Changed?.Invoke();
     }
 
+    /// <summary>Records that a note was added at runtime, so the header count stays truthful.</summary>
+    /// <param name="chunkCount">How many chunks the note produced.</param>
+    public void NoteAdded(int chunkCount)
+    {
+        ChunkCount += chunkCount;
+        Changed?.Invoke();
+    }
+
     /// <summary>Marks ingestion as failed.</summary>
     /// <param name="error">A message the user can act on.</param>
     public void MarkFailed(string error)

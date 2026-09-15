@@ -3,6 +3,7 @@
 @implements IDisposable
 @inject IAgent Agent
 @inject KnowledgeBaseState KnowledgeBase
+@inject KnowledgeBaseWriter KnowledgeBaseWriter
 @inject IJSRuntime JS
 @inject ILogger<Chat> Logger
 
@@ -22,6 +23,10 @@
         {
             <div class="empty">
                 <p>Şirket politikaları hakkında soru sorun. Ajan hangi aracı kullanacağına kendisi karar verir.</p>
+                <p class="hint">
+                    Yeni bir bilgi öğretmek için <code>/ogren</code> ile başlayın &mdash;
+                    örneğin <code>/ogren Şirket aracı talepleri Filo birimine yapılır.</code>
+                </p>
                 <div class="suggestions">
                     @foreach (var suggestion in Suggestions)
                     {
@@ -35,7 +40,7 @@
         @foreach (var turn in _turns)
         {
             <div class="turn @(turn.Role == ConversationRole.User ? "user" : "assistant")">
-                <div class="bubble">
+                <div class="bubble @(turn.IsSystemNote ? "system" : null)">
                     @if (turn.ToolCalls.Count > 0)
                     {
                         <div class="tools">

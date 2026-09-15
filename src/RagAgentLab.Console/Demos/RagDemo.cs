@@ -39,8 +39,9 @@ public sealed class RagDemo
         ConsoleUi.Section("Stage 2 - Knowledge base ingestion");
         var report = await _ingestor.IngestAsync(cancellationToken);
         ConsoleUi.Success(
-            $"{report.DocumentCount} document(s) -> {report.ChunkCount} chunk(s), " +
-            $"{report.EmbeddingDimensions} dimensions, {report.Duration.TotalSeconds:F1}s");
+            $"{report.DocumentCount} document(s) -> {report.ChunkCount} chunk(s) " +
+            $"({report.EmbeddedChunkCount} embedded, {report.ReusedChunkCount} reused) " +
+            $"in {report.Duration.TotalSeconds:F1}s");
 
         await ShowGroundingComparisonAsync(SampleQuestions[0], cancellationToken);
 

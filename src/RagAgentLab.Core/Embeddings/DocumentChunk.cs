@@ -29,6 +29,23 @@ public sealed record DocumentChunk(
     /// </summary>
     /// <returns>The contextualised chunk text.</returns>
     public string ToContextualText() => $"[{SourceName} — {DocumentTitle}]\n{Text}";
+
+    /// <summary>
+    /// Where this chunk came from. Re-ingesting the data directory clears out file chunks that
+    /// no longer exist, and this is what keeps it from deleting notes added from the chat
+    /// along with them.
+    /// </summary>
+    public ChunkOrigin Origin { get; init; } = ChunkOrigin.File;
+}
+
+/// <summary>Where a chunk came from.</summary>
+public enum ChunkOrigin
+{
+    /// <summary>Produced by ingesting a document from the data directory.</summary>
+    File = 0,
+
+    /// <summary>Added at runtime, for example a note typed into the chat.</summary>
+    Note = 1,
 }
 
 /// <summary>A chunk together with its embedding vector, as held by the vector store.</summary>

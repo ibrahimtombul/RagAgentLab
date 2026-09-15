@@ -74,22 +74,52 @@ public sealed class KnowledgeBaseIngestor
             _logger.LogDebug("{File}: {Chunks} chunk(s).", fileName, pieces.Count);
         }
 
-        // 2) Embed all chunks, then 3) store them.
-        var vectors = await _embeddingService.EmbedDocumentsAsync(
-            chunks.Select(c => c.ToContextualText()).ToArray(), cancellationToken);
+        // 2) Work out which chunks actually need embedding. A store that survives restarts can
+        //    tell us what it already holds and what that text hashed to, so an unchanged
+        //    document costs nothing on the second run.
+        var fingerprinted = _vectorStore as IFingerprintedVectorStore;
+        var stored = fingerprinted is not null
+            ? await fingerprinted.GetFingerprintsAsync(cancellationToken)
+            : new Dictionary<string, string>();
 
-        var records = chunks
-            .Zip(vectors, (chunk, vector) => new VectorRecord(chunk, vector))
+        var changed = chunks
+            .Where(chunk => !stored.TryGetValue(chunk.Id, out var fingerprint) ||
+                            fingerprint != ChunkFingerprint.Compute(chunk.Text))
             .ToArray();
 
-        await _vectorStore.UpsertAsync(records, cancellationToken);
+        // 3) Embed only those, and store them.
+        var dimensions = 0;
+        if (changed.Length > 0)
+        {
+            var vectors = await _embeddingService.EmbedDocumentsAsync(
+                changed.Select(c => c.ToContextualText()).ToArray(), cancellationToken);
+
+            var records = changed
+                .Zip(vectors, (chunk, vector) => new VectorRecord(chunk, vector))
+                .ToArray();
+
+            await _vectorStore.UpsertAsync(records, cancellationToken);
+            dimensions = records[0].Vector.Length;
+        }
+
+        // 4) Drop chunks left behind by documents that were edited or deleted.
+        var removed = fingerprinted is not null
+            ? await fingerprinted.RemoveChunksNotInAsync(
+                chunks.Select(c => c.Id).ToArray(), cancellationToken)
+            : 0;
 
         stopwatch.Stop();
 
+        _logger.LogInformation(
+            "Ingested {Documents} document(s): {Embedded} chunk(s) embedded, {Reused} reused, {Removed} removed.",
+            files.Length, changed.Length, chunks.Count - changed.Length, removed);
+
         return new IngestionReport(
             DocumentCount: files.Length,
-            ChunkCount: records.Length,
-            EmbeddingDimensions: records.Length > 0 ? records[0].Vector.Length : 0,
+            ChunkCount: chunks.Count,
+            EmbeddedChunkCount: changed.Length,
+            RemovedChunkCount: removed,
+            EmbeddingDimensions: dimensions,
             Duration: stopwatch.Elapsed);
     }
 }

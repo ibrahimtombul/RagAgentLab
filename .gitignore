@@ -483,3 +483,8 @@ $RECYCLE.BIN/
 
 # Local dev server config used by the preview tooling
 .claude/launch.json
+
+# Local vector store database
+*.db
+*.db-shm
+*.db-wal

@@ -59,9 +59,14 @@ public static class ServiceCollectionExtensions
             .AddOptions<QdrantOptions>()
             .Bind(configuration.GetSection(QdrantOptions.SectionName));
 
+        services
+            .AddOptions<SqliteOptions>()
+            .Bind(configuration.GetSection(SqliteOptions.SectionName));
+
         services.AddSingleton<IEmbeddingService, SemanticKernelEmbeddingService>();
         AddVectorStore(services, configuration);
         services.AddSingleton<KnowledgeBaseIngestor>();
+        services.AddSingleton<KnowledgeBaseWriter>();
         services.AddSingleton<IRagPipeline, RagPipeline>();
 
         // Semantic Kernel discovers filters through DI; this one prints and records every
@@ -87,6 +92,10 @@ public static class ServiceCollectionExtensions
 
         switch (kind)
         {
+            case VectorStoreKind.Sqlite:
+                services.AddSingleton<IVectorStore, SqliteVectorStore>();
+                break;
+
             case VectorStoreKind.Qdrant:
                 services.AddSingleton<IVectorStore, QdrantVectorStore>();
                 break;

@@ -322,3 +322,20 @@ html, body {
     overflow-wrap: anywhere;
     opacity: 0.7;
 }
+
+/* ---- application-generated messages (e.g. "note stored") ---- */
+.bubble.system {
+    background: var(--accent-soft);
+    border-color: transparent;
+    color: var(--text);
+    font-size: 13.5px;
+}
+
+.hint { margin: 14px 0 0; font-size: 13px; opacity: 0.8; }
+.hint code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--tool-bg);
+    font-family: var(--mono);
+    font-size: 12px;
+}
