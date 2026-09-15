@@ -1,11 +1,17 @@
 # RagAgentLab
 
-A hands-on **RAG (Retrieval-Augmented Generation) + agentic workflow** demo built with **C# / .NET 8**,
-running entirely on a **local LLM via [Ollama](https://ollama.com)** — no API keys, no cloud costs, no data
-leaving the machine.
+**C# / .NET 8** ile yazılmış, tamamen **yerel bir dil modeli** üzerinde çalışan bir
+**RAG (Retrieval-Augmented Generation) + araç kullanan ajan** uygulaması. API anahtarı yok,
+bulut maliyeti yok, veri makineden çıkmıyor — model [Ollama](https://ollama.com) ile lokalde koşuyor.
 
-The project answers questions about the internal HR policies of a fictional company, first with a
-classic RAG pipeline and then with an agent that decides for itself which tools to call.
+Uygulama, kurgusal bir şirketin İK politikaları hakkındaki soruları cevaplıyor: önce klasik bir RAG
+hattıyla, sonra hangi aracı çağıracağına kendisi karar veren bir ajanla.
+
+Projenin ayırt edici yanı özellik listesi değil, **her kararın ölçümle verilmiş olması**. Hangi
+embedding modelinin seçileceği, alaka eşiğinin kaç olacağı, sistem prompt'una satır eklemenin neye
+mal olduğu — hepsi tahmin edilmedi, ölçüldü. Ölçümlerin tamamı repodan tek komutla tekrar üretilebilir
+ve sonuçları [Mimari notlar](#architecture-notes) ile [Bilinen sınırlar](#known-limitations)
+bölümlerinde, aksi çıkanlar dahil, yazılı.
 
 ```
 == Stage 3 - Agent with tools ==
@@ -31,13 +37,37 @@ classic RAG pipeline and then with an agent that decides for itself which tools 
   (1 tool call(s), 5,8s)
 ```
 
-The model chose the policy search for one question and the calculator for the other, and never
-saw the annual-leave documents it was not asked about. Deciding that is the agent's whole job.
+Model bir soruda politika aramasını, diğerinde hesap makinesini seçti; sorulmayan izin
+dokümanlarına ise hiç bakmadı. Bu kararı vermek ajanın bütün işi.
+
+## Hızlı başlangıç
+
+```bash
+brew install ollama          # macOS; Linux ve Windows için ollama.com
+ollama serve
+ollama pull bge-m3           # embedding modeli (1,2 GB)
+ollama pull qwen2.5:7b       # sohbet modeli (4,7 GB)
+
+dotnet run --project src/RagAgentLab.Web       # tarayıcıda sohbet arayüzü
+dotnet run --project src/RagAgentLab.Console -- agent   # konsolda ajan demosu
+```
+
+Model gerektirmeyen, anında çalışan bir demo:
+
+```bash
+dotnet run --project src/RagAgentLab.Console -- chunks   # dokümanlar nasıl parçalanıyor
+```
+
+> **Dokümantasyon dili:** Aşağıdaki teknik bölümler İngilizce yazıldı — kod yorumları, commit
+> mesajları ve testlerle aynı dilde olsun diye. Uygulamanın kendisi ve örnek veri Türkçe.
+
+---
 
 ---
 
 ## Contents
 
+- [Hızlı başlangıç](#hızlı-başlangıç)
 - [How it is built, in stages](#how-it-is-built-in-stages)
 - [Requirements](#requirements)
 - [Run](#run)
