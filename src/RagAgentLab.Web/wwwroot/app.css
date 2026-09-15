@@ -549,3 +549,5 @@ html, body {
     .led-large { width: 100px; height: 100px; }
     .led-stage { padding: 14px 0 4px; }
 }
+
+.discarded { font-style: normal; color: var(--accent); opacity: 0.85; }

@@ -77,14 +77,25 @@ public sealed class RagPipeline : IRagPipeline
         var stopwatch = Stopwatch.StartNew();
 
         var queryVector = await _embeddingService.EmbedQueryAsync(question, cancellationToken);
-        var hits = await _vectorStore.SearchAsync(queryVector, topK ?? _ragOptions.TopK, cancellationToken);
+        var found = await _vectorStore.SearchAsync(queryVector, topK ?? _ragOptions.TopK, cancellationToken);
+
+        // Nearest is not the same as relevant. Search always returns the closest chunks it has,
+        // so a question the corpus cannot answer still comes back with three passages; the floor
+        // is what turns "closest" into "close enough".
+        var relevant = _ragOptions.MinimumSimilarity > 0
+            ? found.Where(hit => hit.Score >= _ragOptions.MinimumSimilarity).ToArray()
+            : found;
 
         stopwatch.Stop();
 
-        _logger.LogDebug("Retrieved {Count} chunk(s) for '{Question}'.", hits.Count, question);
-        RetrievalTrace.Report(new RetrievalRecord(question, hits, stopwatch.Elapsed));
+        var discarded = found.Count - relevant.Count;
+        _logger.LogDebug(
+            "Retrieved {Count} chunk(s) for '{Question}', {Discarded} below the {Threshold} floor.",
+            relevant.Count, question, discarded, _ragOptions.MinimumSimilarity);
 
-        return hits;
+        RetrievalTrace.Report(new RetrievalRecord(question, relevant, discarded, stopwatch.Elapsed));
+
+        return relevant;
     }
 
     /// <inheritdoc />

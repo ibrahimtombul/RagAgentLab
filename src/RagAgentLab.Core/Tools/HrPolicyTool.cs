@@ -49,7 +49,10 @@ public sealed class HrPolicyTool
 
         if (hits.Count == 0)
         {
-            return "No relevant passage was found in the HR policy documents.";
+            // Said plainly so the model reports the gap instead of answering from its own
+            // knowledge, which is the failure this whole layer exists to prevent.
+            return "No sufficiently relevant passage was found in the documents. " +
+                   "Tell the user this information is not in the company documents; do not answer from memory.";
         }
 
         var builder = new StringBuilder();

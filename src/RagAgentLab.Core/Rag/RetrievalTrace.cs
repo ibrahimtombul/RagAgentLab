@@ -4,11 +4,17 @@ namespace RagAgentLab.Rag;
 
 /// <summary>One vector search: what was looked up and what came back.</summary>
 /// <param name="Query">The text that was embedded and searched with.</param>
-/// <param name="Hits">The matches, best first.</param>
+/// <param name="Hits">The matches that survived the relevance floor, best first.</param>
+/// <param name="DiscardedBelowThreshold">
+/// How many matches were dropped for scoring too low. Reported rather than silently swallowed:
+/// "three matches, two discarded" explains an unhelpful answer, whereas an empty list alone
+/// looks like the search failed.
+/// </param>
 /// <param name="Duration">How long the embedding call plus the search took.</param>
 public sealed record RetrievalRecord(
     string Query,
     IReadOnlyList<SearchResult> Hits,
+    int DiscardedBelowThreshold,
     TimeSpan Duration);
 
 /// <summary>

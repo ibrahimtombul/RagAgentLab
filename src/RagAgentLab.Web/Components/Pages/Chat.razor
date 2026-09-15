@@ -96,9 +96,22 @@
                                         {
                                             <div class="retrieval">
                                                 <div class="retrieval-query">
-                                                    aranan: "@retrieval.Query"
+                                                    <span>
+                                                        aranan: "@retrieval.Query"
+                                                        @if (retrieval.DiscardedBelowThreshold > 0)
+                                                        {
+                                                            <em class="discarded">
+                                                                · @retrieval.DiscardedBelowThreshold eşleşme alaka eşiğinin altında kaldı
+                                                            </em>
+                                                        }
+                                                    </span>
                                                     <span class="tool-time">@retrieval.Duration.TotalMilliseconds.ToString("F0") ms</span>
                                                 </div>
+
+                                                @if (retrieval.Hits.Count == 0)
+                                                {
+                                                    <div class="hit-text">Eşiği geçen sonuç yok — bu bilgi dokümanlarda bulunmuyor.</div>
+                                                }
                                                 @foreach (var hit in retrieval.Hits)
                                                 {
                                                     <div class="hit">

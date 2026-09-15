@@ -123,6 +123,7 @@ at start-up:
     "ChunkSize": 600,
     "ChunkOverlap": 120,
     "TopK": 3,
+    "MinimumSimilarity": 0.55,
     "EmbeddingBatchSize": 16,
     "DocumentEmbeddingPrefix": "",
     "QueryEmbeddingPrefix": "",
@@ -346,11 +347,29 @@ in-scope question (0.632) sits well clear of the best out-of-scope one (0.459) �
 which makes a relevance threshold a viable feature rather than a guess. `bge-m3` is therefore the
 default.
 
-The switch cost two things worth knowing about. It is **four times the size** (1.2 GB against
-274 MB), which matters more on a small server than on a laptop. And it needs **no task prefixes**,
-so both prefix settings are now empty — whether a prefix helps is a property of the model, and
-getting it wrong is silent: retrieval simply gets worse. The defaults ship matched to the default
-model.
+**What the switch cost.** Measured on the machine this was developed on, an M-series Mac:
+
+| | `nomic-embed-text` | `bge-m3` | Change |
+|---|---|---|---|
+| Download / disk | 274 MB | 1.2 GB | **4.4× larger** |
+| Resident while loaded | 370 MB | 673 MB | 1.8× |
+| Vector width | 768 | 1024 | +33% |
+| Latency, one query | 17.8 ms | 48.0 ms | **2.7× slower** |
+| Indexing the whole corpus | 3.0 s | 3.0 s | no change |
+| Stored vectors, 27 chunks | 81 KB | 108 KB | +33% |
+
+The latency looks alarming as a ratio and is irrelevant in practice: 30 ms extra per question
+disappears beside the 5–30 seconds the chat model takes to answer. The indexing time is identical
+because it is dominated by batching and start-up rather than by the model. What genuinely costs
+something is disk and memory — roughly 300 MB more resident, which matters on a small server and
+not at all on a laptop.
+
+Set against that: retrieval went from ranges that overlap, where no threshold can work, to a gap
+of 0.17 between relevant and irrelevant. For a Turkish corpus that is not a close call.
+
+One further consequence: `bge-m3` needs **no task prefixes**, so both prefix settings are now
+empty. Whether a prefix helps is a property of the model, and getting it wrong is silent —
+retrieval simply gets worse — so the defaults ship matched to the default model.
 
 **Why `qwen2.5:7b`.** The project started on `llama3.2` (3B) because small is convenient, and it
 was measured failing: it wrote tool calls as prose, corrupted Turkish inside tool arguments, and
@@ -522,10 +541,14 @@ one. The measurement is [above](#the-two-models-and-what-each-is-for).
 On `bge-m3` the same eight questions separate cleanly — 0.632 at worst in scope against 0.459 at
 best out of scope. A threshold somewhere around 0.55 would now work.
 
-It is still not implemented. The point of recording this is the shape of the problem rather than
-the number: a threshold is not a property of RAG that can be looked up, it is a property of the
-particular embedding model against the particular corpus, and it has to be measured before it can
-be chosen. On one model it was impossible; on another it is straightforward.
+`Rag:MinimumSimilarity` now applies that floor, defaulting to 0.55 — matches below it are dropped
+and the policy tool reports that the documents do not cover the question, instead of handing the
+model three passages about something else. Setting it to 0 restores the old behaviour.
+
+The number is worth treating with suspicion, and the code says so: it belongs to *this* embedding
+model against *this* corpus. A threshold is not a property of RAG that can be looked up. On one
+model it was impossible to choose; on another it is straightforward; on a third corpus it will be
+a different number. Re-measure with the `retrieve` console mode whenever either changes.
 
 ### Prompt length is not a free parameter
 
