@@ -273,6 +273,74 @@ Ollama also exposes an **OpenAI-compatible** API under `/v1`, so the wire format
 cloud provider expects. Moving to Azure OpenAI is a change of base URL and credentials, not a change
 of code.
 
+### The two models, and what each is for
+
+There are two models in this project doing completely different jobs, and most of the confusion
+about systems like this comes from treating them as one thing.
+
+| | `nomic-embed-text` | `qwen2.5:7b` |
+|---|---|---|
+| What it does | Turns a piece of text into 768 numbers | Reads text and writes what comes next |
+| Output | A vector — coordinates, not words | Words |
+| Used for | Indexing every chunk, and every question | Choosing a tool, writing the answer |
+| Called | Once per chunk, once per question | Once per tool-calling round |
+| Size on disk | 274 MB | 4.7 GB |
+| Typical latency | Milliseconds | 5–30 s on CPU |
+| What a failure looks like | The wrong chunk is retrieved | A wrong answer, or no tool call |
+
+Neither of them "understands" anything. The first has been trained so that texts appearing in
+similar contexts land near each other; the second has been trained to predict the next token.
+Retrieval-augmented generation is the trick of using the first to put the right text in front of
+the second.
+
+**Why a separate embedding model at all.** A chat model can produce embeddings too, but they are
+slower and worse: `qwen2.5:7b` would have to run its full 4.7 GB of weights to turn one sentence
+into a vector, where `nomic-embed-text` does the same job in milliseconds with a model small
+enough to stay resident alongside it. Indexing this corpus takes about two seconds; through the
+chat model it would take minutes.
+
+**Why `nomic-embed-text`.** It is purpose-built for retrieval, it is small enough to keep loaded
+next to the chat model on a laptop, and 768 dimensions is a reasonable point on the quality/size
+curve. It also expects task prefixes — `search_document:` for stored passages, `search_query:` for
+questions — which is why [`IEmbeddingService`](src/RagAgentLab.Core/Embeddings/IEmbeddingService.cs)
+has separate methods for the two; leaving the prefixes off measurably worsened ranking.
+
+**Its measured weakness is Turkish.** The whole system rests on the assumption that texts meaning
+the same thing land near each other. That is testable:
+
+```bash
+dotnet run --project src/RagAgentLab.Console -- similarity
+```
+
+| Compared against *"do I get how many days of annual leave?"* | 🇹🇷 Turkish | 🇬🇧 English |
+|---|---|---|
+| Same meaning, different words (*leave* ↔ *vacation*) | 0.577 | **0.710** |
+| Different topic, same domain (meal allowance) | **0.649** ❌ | 0.615 |
+| Unrelated (sorting a list in Python) | 0.559 ❌ | **0.385** |
+
+In English the ordering is exactly right, and it gets there without sharing a single content word
+between the question and its paraphrase — that is the mechanism working. In Turkish the ordering
+collapses: a question about meal allowances scores *higher* than a paraphrase of the question
+itself, because the model latched onto the shared "ne kadar?" phrasing rather than the meaning.
+
+This is the root cause of a finding recorded under [Known limitations](#a-fixed-relevance-threshold-does-not-separate-in-scope-from-out-of-scope):
+no fixed similarity threshold separates in-scope questions from out-of-scope ones in this corpus. It is not a tuning problem.
+The obvious next step is a multilingual embedding model such as `bge-m3` and the same measurement
+again.
+
+**Why `qwen2.5:7b`.** The project started on `llama3.2` (3B) because small is convenient, and it
+was measured failing: it wrote tool calls as prose, corrupted Turkish inside tool arguments, and
+answered `750 * 1` to "750 a month, how much a year?". `qwen2.5:7b` is trained for tool use and
+handles Turkish considerably better — the same four demo questions went from one correct to four.
+Its own limit, measured and documented below, is that it will not chain one tool's output into
+another tool's input.
+
+Both models are configuration values, so trying a different one is a one-line change:
+
+```json
+{ "Ollama": { "ChatModel": "qwen2.5:14b", "EmbeddingModel": "bge-m3" } }
+```
+
 ### Why Semantic Kernel, and how it is pointed at Ollama
 
 Semantic Kernel provides the piece that is genuinely tedious to write by hand: the **automatic
@@ -416,6 +484,32 @@ Moving the guidance into the tool's own schema description did not fix it. This 
 boundary of a 7B model on a laptop, and it is why the scripted demo questions each need one tool.
 A multi-step plan needs either a larger model or an explicitly orchestrated chain — at which point
 the deterministic pipeline of stage 2 is the better tool for the job.
+
+### A fixed relevance threshold does not separate in-scope from out-of-scope
+
+The obvious way to stop an out-of-scope question dragging irrelevant passages into the prompt is
+to ignore matches below some similarity. Measured with
+`dotnet run --project src/RagAgentLab.Console -- retrieve "<question>"`, the best match per
+question was:
+
+| Question | Top match |
+|---|---|
+| Working from abroad — **in scope** | 0.726 |
+| Meal allowance — **in scope** | 0.716 |
+| Annual leave after six years — **in scope** | 0.694 |
+| Training budget — **in scope** | 0.681 |
+| **Sorting a list in Python — out of scope** | **0.704** |
+| Minimum wage — out of scope | 0.670 |
+| Weather in İstanbul — out of scope | 0.665 |
+| "What is your purpose?" — out of scope | 0.584 |
+
+The ranges overlap: a question about Python scores higher than a genuine question about the
+training budget. A cutoff at 0.70 would have admitted the Python question and rejected the
+training-budget one. No single number works, which is why there is no threshold in the code.
+
+The cause is the embedding model's weak separation in Turkish, measured
+[above](#the-two-models-and-what-each-is-for). The fix is a better embedding model or a
+re-ranking pass over the retrieved chunks, not a constant.
 
 ### Prompt length is not a free parameter
 

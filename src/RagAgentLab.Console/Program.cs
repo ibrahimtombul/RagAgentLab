@@ -26,6 +26,7 @@ builder.Services.AddSingleton<ChunkInspectionDemo>();
 builder.Services.AddSingleton<AgentDemo>();
 builder.Services.AddSingleton<RetrievalInspectionDemo>();
 builder.Services.AddSingleton<EmbeddingMapDemo>();
+builder.Services.AddSingleton<SimilarityProbeDemo>();
 
 using var host = builder.Build();
 
@@ -63,6 +64,10 @@ try
                 .RunAsync(args.Skip(1).ToArray(), cancellation.Token);
             break;
 
+        case "similarity":
+            await host.Services.GetRequiredService<SimilarityProbeDemo>().RunAsync(cancellation.Token);
+            break;
+
         case "map":
             await host.Services.GetRequiredService<EmbeddingMapDemo>()
                 .RunAsync(args.Skip(1).FirstOrDefault() ?? "docs/embedding-space.svg", cancellation.Token);
@@ -73,7 +78,7 @@ try
             break;
 
         default:
-            ConsoleUi.Error($"Unknown demo '{demo}'. Available: connect, chunks, retrieve, map, rag, agent");
+            ConsoleUi.Error($"Unknown demo '{demo}'. Available: connect, chunks, retrieve, similarity, map, rag, agent");
             return 2;
     }
 
