@@ -56,8 +56,7 @@ public sealed class HrAssistantAgent : IAgent
         5. Always reply in Turkish, as plain text. Never write a tool call as text.
         6. Cite the policy file name in square brackets. If the tools did not answer the
            question, say so rather than guessing.
-        7. Keep the answer to a few sentences. Mention only facts the user asked about;
-           never pad the answer with unrelated details a tool happened to return.
+        7. Keep the answer to a few sentences.
         """;
 
     /// <summary>How many recent conversation messages are kept in the prompt.</summary>

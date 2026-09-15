@@ -31,16 +31,16 @@ public sealed class HrPolicyTool
     /// <returns>The most relevant excerpts, each labelled with its source file.</returns>
     [KernelFunction("search_hr_policy")]
     // The description is the only thing that tells the model what this corpus contains, so it
-    // has to be kept in step with the documents themselves. Adding a statutory minimum-wage
-    // table to the corpus without listing it here made the model stop calling the tool for
-    // wage questions entirely - it had no reason to believe the answer was in there.
-    [Description("Searches the organisation's internal reference documents and returns the most " +
-                 "relevant excerpts. The corpus covers: annual, sick and parental leave; hybrid and " +
-                 "remote work; travel and expense limits; training budget; performance reviews and " +
-                 "promotions; and statutory reference tables such as the minimum wage by year. " +
-                 "Use this for any question about rules, limits, amounts, dates, rates or processes, " +
-                 "including questions about a specific year. Never answer such questions from your " +
-                 "own knowledge.")]
+    // has to be kept in step with the documents themselves. A statutory minimum-wage table was
+    // once added to the corpus without listing it here, and the model stopped calling the tool
+    // for wage questions entirely - nothing told it the answer might be in there. That table
+    // now lives behind get_minimum_wage instead, because it is a lookup rather than prose.
+    [Description("Searches the company's internal HR policy documents (annual leave, sick leave, " +
+                 "parental leave, hybrid and remote work, travel and expense limits, meal and travel " +
+                 "allowances, training budget, performance reviews and promotions), plus any note the " +
+                 "user has taught the assistant, and returns the most relevant excerpts. " +
+                 "Use this for any question about company rules, limits, amounts, deadlines or processes. " +
+                 "Never answer such questions from your own knowledge.")]
     public async Task<string> SearchAsync(
         [Description("The question or topic to look up, in the user's own words.")] string question,
         CancellationToken cancellationToken = default)

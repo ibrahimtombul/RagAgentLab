@@ -25,6 +25,10 @@
          reference this library, None items stop at this project. -->
     <None Remove="data\**" />
     <Content Include="data\**" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- Lookup tables the tools read. Not part of the searchable corpus. -->
+    <None Remove="reference-data\**" />
+    <Content Include="reference-data\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

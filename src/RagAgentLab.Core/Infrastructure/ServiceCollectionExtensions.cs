@@ -158,5 +158,6 @@ public static class ServiceCollectionExtensions
         kernelBuilder.Plugins.AddFromType<HrPolicyTool>("hr");
         kernelBuilder.Plugins.AddFromType<CalculatorTool>("calculator");
         kernelBuilder.Plugins.AddFromType<WorkdayTool>("workday");
+        kernelBuilder.Plugins.AddFromType<MinimumWageTool>("wage");
     }
 }
