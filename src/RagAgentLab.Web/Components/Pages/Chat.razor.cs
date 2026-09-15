@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using RagAgentLab.Agents;
 using RagAgentLab.Rag;
+using RagAgentLab.Web.Components.Shared;
 using RagAgentLab.Web.Services;
 
 namespace RagAgentLab.Web.Components.Pages;
@@ -33,12 +34,32 @@ public partial class Chat : IDisposable
     private ElementReference _messagesElement;
     private CancellationTokenSource? _cancellation;
     private string _input = string.Empty;
+    private bool _lastTurnFailed;
 
     /// <summary>True while an answer is being generated.</summary>
     private bool IsBusy => _cancellation is not null;
 
     /// <summary>The knowledge base must be indexed before a question can be answered.</summary>
     private bool CanSend => KnowledgeBase.Status == KnowledgeBaseStatus.Ready && !IsBusy;
+
+    /// <summary>
+    /// What the status ring shows. Loading the corpus counts as work rather than as an idle
+    /// state, because from the user's side it is the same thing: the assistant cannot answer yet.
+    /// </summary>
+    private AndroidLedState LedState
+    {
+        get
+        {
+            if (KnowledgeBase.Status == KnowledgeBaseStatus.Failed || _lastTurnFailed)
+            {
+                return AndroidLedState.Error;
+            }
+
+            return IsBusy || KnowledgeBase.Status == KnowledgeBaseStatus.Loading
+                ? AndroidLedState.Processing
+                : AndroidLedState.Idle;
+        }
+    }
 
     private string StatusText => KnowledgeBase.Status switch
     {
@@ -106,6 +127,7 @@ public partial class Chat : IDisposable
         var answer = new ChatTurn { Role = ConversationRole.Assistant, IsStreaming = true };
         _turns.Add(answer);
 
+        _lastTurnFailed = false;
         _cancellation = new CancellationTokenSource();
         var token = _cancellation.Token;
 
@@ -159,6 +181,7 @@ public partial class Chat : IDisposable
         {
             Logger.LogError(ex, "The agent failed while answering.");
             answer.Content = $"Hata: {ex.Message}";
+            _lastTurnFailed = true;
         }
         finally
         {
@@ -168,6 +191,16 @@ public partial class Chat : IDisposable
             foreach (var call in answer.ToolCalls)
             {
                 call.IsExpanded = false;
+            }
+
+            // A reply with no tool call that reads like one, or no reply at all, is a failure
+            // the ring should show even though nothing threw.
+            if (!_lastTurnFailed && answer.ToolCalls.Count == 0)
+            {
+                _lastTurnFailed = answer.Content.Length == 0 ||
+                                  answer.Content.Contains("[Not:", StringComparison.Ordinal) ||
+                                  answer.Content.Contains("[the model returned an empty response",
+                                      StringComparison.Ordinal);
             }
 
             answer.IsStreaming = false;
@@ -180,6 +213,7 @@ public partial class Chat : IDisposable
     /// <summary>Writes a note into the knowledge base and reports the result in the transcript.</summary>
     private async Task TeachAsync(string note)
     {
+        _lastTurnFailed = false;
         _turns.Add(new ChatTurn
         {
             Role = ConversationRole.User,
@@ -201,12 +235,17 @@ public partial class Chat : IDisposable
         }
         catch (ArgumentException ex)
         {
-            confirmation.Content = $"Not eklenemedi: {ex.Message}";
+            // ArgumentException appends " (Parameter 'text')" to its message, which is a detail
+            // about this code rather than anything the person typing a note needs to read.
+            var reason = ex.Message.Split(" (Parameter", StringComparison.Ordinal)[0];
+            confirmation.Content = $"Not eklenemedi: {reason}";
+            _lastTurnFailed = true;
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to add a note to the knowledge base.");
             confirmation.Content = $"Not eklenemedi: {ex.Message}";
+            _lastTurnFailed = true;
         }
         finally
         {

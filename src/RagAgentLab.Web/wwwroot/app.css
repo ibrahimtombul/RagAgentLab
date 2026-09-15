@@ -339,3 +339,84 @@ html, body {
     font-family: var(--mono);
     font-size: 12px;
 }
+
+/* ---- status ring ----
+   Blue steady while idle, a yellow arc chasing round while the agent works, red when
+   something failed. The colour is carried on `color` so the two circles can both use
+   currentColor and only one property changes per state. */
+.led {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+}
+
+.led svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    transform: rotate(-90deg);           /* start the arc at twelve o'clock */
+}
+
+.led circle {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+}
+
+.led-track { opacity: 0.18; }
+
+.led-arc {
+    /* r = 10, so the circumference is 2πr ≈ 62.83 */
+    stroke-dasharray: 62.83;
+    stroke-dashoffset: 0;
+    filter: drop-shadow(0 0 4px currentColor);
+    transition: stroke 0.25s ease;
+}
+
+.led-idle { color: #2f9bdc; }
+.led-idle .led-arc { animation: led-breathe 3.2s ease-in-out infinite; }
+
+.led-processing { color: #e0a32e; }
+.led-processing .led-arc {
+    stroke-dasharray: 16 47;             /* roughly a quarter of the ring */
+    transform-origin: 14px 14px;
+    animation: led-spin 0.9s linear infinite, led-flicker 0.28s steps(2, end) infinite;
+}
+
+.led-error { color: #dc4b45; }
+.led-error .led-arc { animation: led-alarm 0.9s ease-in-out infinite; }
+
+@keyframes led-breathe {
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 1; }
+}
+
+@keyframes led-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* The game's LED flickers rather than glowing evenly when the android is working hard. */
+@keyframes led-flicker {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.72; }
+}
+
+@keyframes led-alarm {
+    0%, 100% { opacity: 1; }
+    45%      { opacity: 0.25; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .led-idle .led-arc,
+    .led-processing .led-arc,
+    .led-error .led-arc {
+        animation: none;
+    }
+
+    .led-processing .led-arc { stroke-dasharray: 16 47; }
+}
+
+.app-title { flex: 1; min-width: 0; }
