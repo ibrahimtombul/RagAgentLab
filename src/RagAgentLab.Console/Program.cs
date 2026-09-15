@@ -25,6 +25,7 @@ builder.Services.AddSingleton<RagDemo>();
 builder.Services.AddSingleton<ChunkInspectionDemo>();
 builder.Services.AddSingleton<AgentDemo>();
 builder.Services.AddSingleton<RetrievalInspectionDemo>();
+builder.Services.AddSingleton<EmbeddingMapDemo>();
 
 using var host = builder.Build();
 
@@ -62,12 +63,17 @@ try
                 .RunAsync(args.Skip(1).ToArray(), cancellation.Token);
             break;
 
+        case "map":
+            await host.Services.GetRequiredService<EmbeddingMapDemo>()
+                .RunAsync(args.Skip(1).FirstOrDefault() ?? "docs/embedding-space.svg", cancellation.Token);
+            break;
+
         case "chunks":
             await host.Services.GetRequiredService<ChunkInspectionDemo>().RunAsync(cancellation.Token);
             break;
 
         default:
-            ConsoleUi.Error($"Unknown demo '{demo}'. Available: connect, chunks, retrieve, rag, agent");
+            ConsoleUi.Error($"Unknown demo '{demo}'. Available: connect, chunks, retrieve, map, rag, agent");
             return 2;
     }
 

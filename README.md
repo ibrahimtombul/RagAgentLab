@@ -43,6 +43,7 @@ saw the annual-leave documents it was not asked about. Deciding that is the agen
 - [Run](#run)
 - [Configuration](#configuration)
 - [Project layout](#project-layout)
+- [How it works](#how-it-works)
 - [Architecture notes](#architecture-notes)
 - [Known limitations](#known-limitations)
 - [Tests](#tests)
@@ -148,6 +149,115 @@ src/RagAgentLab/
 └── data/            the fictional HR policy corpus
 tests/RagAgentLab.Tests/   unit tests for the deterministic parts (no model server needed)
 ```
+
+---
+
+## How it works
+
+### Indexing — turning documents into something searchable
+
+```mermaid
+flowchart LR
+    A["data/*.txt<br/>5 documents"] --> B["TextChunker<br/>~600 chars, 120 overlap"]
+    B --> C["26 chunks"]
+    C --> D["nomic-embed-text<br/>each chunk → 768 numbers"]
+    D --> E[("SQLite<br/>vector + text + fingerprint")]
+
+    style E fill:#1f2d27,stroke:#6fbf95,color:#eceef2
+```
+
+A **chunk** is a slice of a document. Splitting matters because an embedding model compresses
+whatever it is given into a *single* vector: feed it a whole document covering leave, remote work
+and expenses and you get the blurry average of all three, which matches no question well. Small,
+single-topic slices match sharply.
+
+Each chunk then becomes 768 numbers — its coordinates in a space where texts that mean similar
+things end up near each other. Re-running the indexer only embeds chunks whose text has actually
+changed; the fingerprint column is what makes that safe.
+
+### Answering — which nodes a question passes through
+
+```mermaid
+flowchart TD
+    Q["User question"] --> M{"qwen2.5:7b<br/>which tool, if any?"}
+
+    M -->|"policy, limits, amounts"| T1["hr.search_hr_policy"]
+    M -->|"arithmetic"| T2["calculator.calculate"]
+    M -->|"dates, working days"| T3["workday.get_today<br/>workday.add_business_days"]
+    M -->|"minimum wage"| T4["wage.get_minimum_wage<br/>wage.compare_salary_to_minimum_wage"]
+    M -->|"no tool needed"| D["Answer directly"]
+
+    T1 --> R1["Question → 768 numbers"]
+    R1 --> R2["Cosine similarity<br/>against every chunk"]
+    R2 --> R3["Top 3 chunks"]
+    R3 --> P["Chunks pasted into the prompt<br/>as context"]
+
+    P --> G["Model writes the answer"]
+    T2 --> G
+    T3 --> G
+    T4 --> G
+    G --> OUT["Answer + cited source"]
+    D --> OUT
+
+    style M fill:#2d2718,stroke:#e0a32e,color:#eceef2
+    style R2 fill:#1a2733,stroke:#2f9bdc,color:#eceef2
+    style OUT fill:#1f2d27,stroke:#6fbf95,color:#eceef2
+```
+
+The branch at the top is the whole difference between stage 2 and stage 3. In the RAG pipeline
+that decision is made in code — retrieve, then generate, every time. Here the model makes it, which
+is why "what is 15% of 3500?" no longer performs a pointless vector search.
+
+### One question, traced end to end
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant A as Agent
+    participant E as nomic-embed-text
+    participant S as Vector store
+    participant L as qwen2.5:7b
+
+    U->>A: "Yurt dışından yılda kaç iş günü çalışabilirim?"
+    A->>L: question + JSON schema of all six tools
+    L-->>A: call search_hr_policy(question)
+    A->>E: embed the question
+    E-->>A: 768 numbers
+    A->>S: nearest 3 chunks
+    S-->>A: 02-uzaktan-calisma (0.726), (0.691), (0.679)
+    A->>L: question + the 3 retrieved chunks
+    L-->>A: "Yurt dışından yılda en fazla 20 iş günü…"
+    A-->>U: answer + source file
+```
+
+Every step here is visible in the app: the chat shows the tool call, its arguments and its
+duration, and the **"arama detayı"** panel underneath expands to the matched file, chunk index,
+similarity score and the matched text.
+
+### What 768 dimensions actually look like
+
+![Embedding space](docs/embedding-space.svg)
+
+Regenerate it from the live corpus with:
+
+```bash
+dotnet run --project src/RagAgentLab.Console -- map docs/embedding-space.svg
+```
+
+Each dot is one chunk, coloured by the document it came from; the diamonds are questions and the
+dashed lines go to the chunks each one retrieves. The axes are the two directions along which the
+corpus varies most — a shadow of the full space, but enough to show the thing retrieval depends
+on: whether documents form separate clusters, and whether a question lands near the right one.
+
+Two details in that picture are worth knowing:
+
+- The axes are fitted on the **corpus alone**, and the questions are then measured against them.
+  Fitting on both together produced a map whose main axis was simply "question or document",
+  because the embedding model marks the two with different task prefixes and puts them in
+  different regions — every document collapsed into one blob.
+- The lines are computed in the full 768 dimensions, not on the flattened map. A picture that
+  invented its own neighbours would be worse than no picture.
 
 ---
 

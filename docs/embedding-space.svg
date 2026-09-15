@@ -1,0 +1,73 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 660" width="960" height="660" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="100%" height="100%" fill="#15161a"/>
+<text x="70" y="34" fill="#eceef2" font-size="16" font-weight="600">A map of the knowledge base</text>
+<text x="70" y="54" fill="#9a9ca6" font-size="12">768-dimensional embedding space flattened onto its two principal axes. Dashed lines: the 3 chunks each question actually retrieves, scored in the full space.</text>
+<line x1="343.1" y1="256.3" x2="78.0" y2="152.4" stroke="#6b6b73" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
+<text x="210.5" y="204.3" fill="#6b6b73" font-size="9" font-family="ui-monospace, monospace">0.759</text>
+<line x1="343.1" y1="256.3" x2="123.9" y2="184.5" stroke="#6b6b73" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
+<text x="233.5" y="220.4" fill="#6b6b73" font-size="9" font-family="ui-monospace, monospace">0.688</text>
+<line x1="343.1" y1="256.3" x2="94.6" y2="187.0" stroke="#6b6b73" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
+<text x="218.8" y="221.6" fill="#6b6b73" font-size="9" font-family="ui-monospace, monospace">0.684</text>
+<line x1="205.5" y1="200.7" x2="108.7" y2="192.1" stroke="#6b6b73" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
+<text x="157.1" y="196.4" fill="#6b6b73" font-size="9" font-family="ui-monospace, monospace">0.691</text>
+<line x1="205.5" y1="200.7" x2="158.0" y2="179.0" stroke="#6b6b73" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
+<text x="181.7" y="189.9" fill="#6b6b73" font-size="9" font-family="ui-monospace, monospace">0.687</text>
+<line x1="205.5" y1="200.7" x2="126.4" y2="218.4" stroke="#6b6b73" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
+<text x="166.0" y="209.5" fill="#6b6b73" font-size="9" font-family="ui-monospace, monospace">0.686</text>
+<line x1="576.6" y1="260.4" x2="881.6" y2="232.4" stroke="#6b6b73" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
+<text x="729.1" y="246.4" fill="#6b6b73" font-size="9" font-family="ui-monospace, monospace">0.710</text>
+<line x1="576.6" y1="260.4" x2="876.1" y2="236.6" stroke="#6b6b73" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
+<text x="726.4" y="248.5" fill="#6b6b73" font-size="9" font-family="ui-monospace, monospace">0.654</text>
+<line x1="576.6" y1="260.4" x2="123.9" y2="184.5" stroke="#6b6b73" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
+<text x="350.3" y="222.4" fill="#6b6b73" font-size="9" font-family="ui-monospace, monospace">0.626</text>
+<line x1="489.0" y1="291.6" x2="301.2" y2="200.7" stroke="#6b6b73" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
+<text x="395.1" y="246.2" fill="#6b6b73" font-size="9" font-family="ui-monospace, monospace">0.662</text>
+<line x1="489.0" y1="291.6" x2="881.6" y2="232.4" stroke="#6b6b73" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
+<text x="685.3" y="262.0" fill="#6b6b73" font-size="9" font-family="ui-monospace, monospace">0.656</text>
+<line x1="489.0" y1="291.6" x2="221.7" y2="533.6" stroke="#6b6b73" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
+<text x="355.3" y="412.6" fill="#6b6b73" font-size="9" font-family="ui-monospace, monospace">0.651</text>
+<circle cx="108.7" cy="192.1" r="6" fill="#2f9bdc" opacity="0.85"/>
+<circle cx="145.8" cy="168.2" r="6" fill="#2f9bdc" opacity="0.85"/>
+<circle cx="126.4" cy="218.4" r="6" fill="#2f9bdc" opacity="0.85"/>
+<circle cx="70.0" cy="198.2" r="6" fill="#2f9bdc" opacity="0.85"/>
+<circle cx="76.9" cy="147.3" r="6" fill="#2f9bdc" opacity="0.85"/>
+<circle cx="158.0" cy="179.0" r="6" fill="#2f9bdc" opacity="0.85"/>
+<circle cx="91.0" cy="166.3" r="6" fill="#e0a32e" opacity="0.85"/>
+<circle cx="123.9" cy="184.5" r="6" fill="#e0a32e" opacity="0.85"/>
+<circle cx="78.0" cy="152.4" r="6" fill="#e0a32e" opacity="0.85"/>
+<circle cx="100.3" cy="151.4" r="6" fill="#e0a32e" opacity="0.85"/>
+<circle cx="95.5" cy="140.0" r="6" fill="#e0a32e" opacity="0.85"/>
+<circle cx="94.6" cy="187.0" r="6" fill="#e0a32e" opacity="0.85"/>
+<circle cx="741.2" cy="236.7" r="6" fill="#4fb477" opacity="0.85"/>
+<circle cx="845.2" cy="228.0" r="6" fill="#4fb477" opacity="0.85"/>
+<circle cx="890.0" cy="221.7" r="6" fill="#4fb477" opacity="0.85"/>
+<circle cx="835.1" cy="252.9" r="6" fill="#4fb477" opacity="0.85"/>
+<circle cx="881.6" cy="232.4" r="6" fill="#4fb477" opacity="0.85"/>
+<circle cx="876.1" cy="236.6" r="6" fill="#4fb477" opacity="0.85"/>
+<circle cx="256.0" cy="495.0" r="6" fill="#c0607a" opacity="0.85"/>
+<circle cx="304.7" cy="487.8" r="6" fill="#c0607a" opacity="0.85"/>
+<circle cx="209.2" cy="472.1" r="6" fill="#c0607a" opacity="0.85"/>
+<circle cx="156.9" cy="550.0" r="6" fill="#c0607a" opacity="0.85"/>
+<circle cx="221.7" cy="533.6" r="6" fill="#c0607a" opacity="0.85"/>
+<circle cx="183.5" cy="507.2" r="6" fill="#c0607a" opacity="0.85"/>
+<circle cx="301.2" cy="200.7" r="6" fill="#8a6fd1" opacity="0.85"/>
+<circle cx="203.7" cy="222.7" r="6" fill="#8a6fd1" opacity="0.85"/>
+<path d="M 343.1 247.3 L 352.1 256.3 L 343.1 265.3 L 334.1 256.3 Z" fill="#eceef2" stroke="#15161a" stroke-width="1.5"/>
+<text x="356.1" y="260.3" text-anchor="start" fill="#eceef2" font-size="11">Yurt dışından yılda kaç iş günü çalışabilirim?</text>
+<path d="M 205.5 191.7 L 214.5 200.7 L 205.5 209.7 L 196.5 200.7 Z" fill="#eceef2" stroke="#15161a" stroke-width="1.5"/>
+<text x="218.5" y="204.7" text-anchor="start" fill="#eceef2" font-size="11">Yıllık izin hakkım kaç gün?</text>
+<path d="M 576.6 251.4 L 585.6 260.4 L 576.6 269.4 L 567.6 260.4 Z" fill="#eceef2" stroke="#15161a" stroke-width="1.5"/>
+<text x="563.6" y="264.4" text-anchor="end" fill="#eceef2" font-size="11">Yemek harcırahı ne kadar?</text>
+<path d="M 489.0 282.6 L 498.0 291.6 L 489.0 300.6 L 480.0 291.6 Z" fill="#eceef2" stroke="#15161a" stroke-width="1.5"/>
+<text x="502.0" y="295.6" text-anchor="start" fill="#eceef2" font-size="11">Parolam kaç karakter olmalı?</text>
+<circle cx="70.0" cy="614.0" r="5" fill="#2f9bdc"/>
+<text x="81.0" y="618.0" fill="#9a9ca6" font-size="10.5">01-izin-politikasi.txt</text>
+<circle cx="225.8" cy="614.0" r="5" fill="#e0a32e"/>
+<text x="236.8" y="618.0" fill="#9a9ca6" font-size="10.5">02-uzaktan-calisma-politikasi.txt</text>
+<circle cx="446.5" cy="614.0" r="5" fill="#4fb477"/>
+<text x="457.5" y="618.0" fill="#9a9ca6" font-size="10.5">03-masraf-ve-seyahat-politikasi.txt</text>
+<circle cx="70.0" cy="632.0" r="5" fill="#c0607a"/>
+<text x="81.0" y="636.0" fill="#9a9ca6" font-size="10.5">04-egitim-ve-performans-politikasi.txt</text>
+<circle cx="320.2" cy="632.0" r="5" fill="#8a6fd1"/>
+<text x="331.2" y="636.0" fill="#9a9ca6" font-size="10.5">05-bilgi-guvenligi-politikasi.txt</text>
+</svg>
