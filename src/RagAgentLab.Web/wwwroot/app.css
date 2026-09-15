@@ -530,11 +530,16 @@ html, body {
     padding: 20px 0 6px;
 }
 
-.led-large { width: 84px; height: 84px; }
-.led-large circle { stroke-width: 2.2; }
-.led-large .led-arc { filter: drop-shadow(0 0 10px currentColor); }
+.led-large { width: 124px; height: 124px; }
+
+/* A thick band rather than a hairline: the viewBox is 28 units across, so a stroke of 5.5
+   renders about 24px wide at this size. */
+.led-large circle { stroke-width: 5.5; }
+.led-large .led-track { opacity: 0.22; }
+.led-large .led-arc { filter: drop-shadow(0 0 14px currentColor); }
 
 @media (max-width: 620px) {
-    .led-large { width: 64px; height: 64px; }
+    .led-large { width: 86px; height: 86px; }
+    .led-large circle { stroke-width: 5; }
     .led-stage { padding: 14px 0 4px; }
 }
