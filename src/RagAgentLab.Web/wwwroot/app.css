@@ -551,3 +551,13 @@ html, body {
 }
 
 .discarded { font-style: normal; color: var(--accent); opacity: 0.85; }
+
+.menu-item-question { display: block; }
+.menu-item-route {
+    display: block;
+    margin-top: 3px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--muted);
+    opacity: 0.85;
+}

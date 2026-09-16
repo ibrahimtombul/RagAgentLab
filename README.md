@@ -4,8 +4,22 @@
 **RAG (Retrieval-Augmented Generation) + araç kullanan ajan** uygulaması. API anahtarı yok,
 bulut maliyeti yok, veri makineden çıkmıyor — model [Ollama](https://ollama.com) ile lokalde koşuyor.
 
-Uygulama, kurgusal bir şirketin İK politikaları hakkındaki soruları cevaplıyor: önce klasik bir RAG
-hattıyla, sonra hangi aracı çağıracağına kendisi karar veren bir ajanla.
+Uygulama kurgusal bir şirketin asistanı: hem İK politikalarını hem de şirketin e-ticaret verilerini
+(ürünler, depo stokları, satışlar) cevaplıyor. Önce klasik bir RAG hattıyla, sonra hangi aracı
+çağıracağına kendisi karar veren bir ajanla.
+
+Bu ikinci veri kümesi süs değil, projenin asıl tezini gösteriyor: **her şey RAG'e ait değil.** Aynı
+`products` satırının açıklama sütunu vektör aramasına, stok ve fiyat sütunları SQL'e gidiyor;
+yıllara göre asgari ücret tablosu ise sabit bir tool'a. Ajan hangi soruya hangi yolla gideceğine
+kendisi karar veriyor:
+
+| Soru | Yol |
+|---|---|
+| "Yurt dışından yılda kaç iş günü çalışabilirim?" | Politika dokümanlarında **anlamsal arama** |
+| "Açık ofis için sessiz bir ürün öner" | Ürün açıklamalarında **anlamsal arama** |
+| "ELK-001 ürününden kaç adet stok var?" | **SQL** — kesin sonuç |
+| "Son 30 günde en çok satan 3 ürün?" | **SQL** — gruplama ve sıralama |
+| "2015 asgari ücret ne kadardı?" | **Sabit tablo** — kesin değer |
 
 Projenin ayırt edici yanı özellik listesi değil, **her kararın ölçümle verilmiş olması**. Hangi
 embedding modelinin seçileceği, alaka eşiğinin kaç olacağı, sistem prompt'una satır eklemenin neye
@@ -15,30 +29,35 @@ bölümlerinde, aksi çıkanlar dahil, yazılı.
 
 ```
 == Stage 3 - Agent with tools ==
-  Tools available to the model: search_hr_policy, calculate, get_today, add_business_days
 
   -> Question: Yurt dışından yılda en fazla kaç iş günü çalışabilirim?
   -> tool call #1: hr.search_hr_policy(question: "Yurt dışından yılda en fazla kaç iş günü çalışabilirim?")
-  ->         result: --- source: 02-uzaktan-calisma-politikasi.txt (similarity 0,726) --- ... [66 ms]
+  ->         result: --- source: 02-uzaktan-calisma-politikasi.txt (similarity 0,734) --- ... [66 ms]
 
   ANSWER
   Yurt dışından yılda en fazla 20 iş günü çalışabilirsiniz. Bu talep en az 15 gün öncesinden
   İK'ye bildirilmeli ve vergi/mevzuat değerlendirmesi için Mali İşler biriminin onayına sunulmalıdır.
 
-  (1 tool call(s), 16,2s)
-
-  -> Question: Aylık 750 TL internet katkısı bir yılda toplam kaç TL eder?
-  -> tool call #1: calculator.calculate(expression: "750 * 12")
-  ->         result: 9000 [5 ms]
+  -> Question: İçeceğimi sıcak tutacak bir ürün öner
+  -> tool call #1: shop.search_products(need: "sıcak içecek tutar")
+  ->         result: EN YAKIN EŞLEŞME: Çelik Termos — Ev & Yaşam (EVA-001) ... [2400 ms]
 
   ANSWER
-  Aylık 750 TL internet katkısı bir yılda toplam 9000 TL eder.
+  Çelik Termos size uygun olacaktır. Sabah doldurduğunuz içecek öğleden sonraya kadar
+  sıcaklığını korur.
 
-  (1 tool call(s), 5,8s)
+  -> Question: Son 30 günde en çok satan 3 ürün hangileri?
+  -> tool call #1: shop.top_selling_products(limit: "3")
+  ->         result: 2026-08-18 - 2026-09-16 aralığında en çok satanlar: 1. Seramik Kupa Seti ... [89 ms]
+
+  ANSWER
+  Son 30 günde en çok satan ürünler: 1. Seramik Kupa Seti, 2. Bluetooth Hoparlör,
+  3. Koşu Ayakkabısı.
 ```
 
-Model bir soruda politika aramasını, diğerinde hesap makinesini seçti; sorulmayan izin
-dokümanlarına ise hiç bakmadı. Bu kararı vermek ajanın bütün işi.
+Üç soru, üç farklı yol — ve hiçbirinde ajana hangi yolu kullanacağı söylenmedi. "Sıcak içecek"
+sorusunda ürünün adı bile geçmiyor; onu bulan şey anlamsal benzerlik. Satış sorusunda ise tarih
+aralığı verilmedi, tool bugünün tarihini kendisi biliyor.
 
 ## Hızlı başlangıç
 

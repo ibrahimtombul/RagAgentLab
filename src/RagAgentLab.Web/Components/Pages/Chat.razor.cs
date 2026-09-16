@@ -19,12 +19,17 @@ namespace RagAgentLab.Web.Components.Pages;
 /// </summary>
 public partial class Chat : IDisposable
 {
-    /// <summary>Starter questions, chosen to exercise different routes through the tool set.</summary>
-    private static readonly string[] Suggestions =
+    /// <summary>
+    /// Starter questions, one per strategy the system uses. The route is shown beside each so the
+    /// menu doubles as an explanation of what the agent is choosing between.
+    /// </summary>
+    private static readonly (string Question, string Route)[] Suggestions =
     [
-        "Yurt dışından yılda en fazla kaç iş günü çalışabilirim?",
-        "Aylık 750 TL internet katkısı bir yılda kaç TL eder?",
-        "Eğitim bütçem ne kadar ve bir sonraki yıla devreder mi?",
+        ("Yurt dışından yılda en fazla kaç iş günü çalışabilirim?", "politika araması · RAG"),
+        ("Açık ofis için sessiz bir ürün öner", "ürün araması · RAG"),
+        ("ELK-001 ürününden kaç adet stok var?", "stok sorgusu · SQL"),
+        ("Son 30 günde en çok satan 3 ürün hangileri?", "satış raporu · SQL"),
+        ("2015 asgari ücret ne kadardı?", "mevzuat tablosu · tool"),
     ];
 
     /// <summary>Shown in the menu so the teach command has a concrete example to copy.</summary>

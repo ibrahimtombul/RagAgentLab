@@ -18,7 +18,7 @@
 
         <div class="app-title">
             <h1>RagAgentLab</h1>
-            <p class="subtitle">Kuzey Yazılım A.Ş. İK asistanı &mdash; yerel model, araç kullanan ajan</p>
+            <p class="subtitle">Kuzey Yazılım A.Ş. asistanı &mdash; İK politikaları, ürünler, stok ve satışlar</p>
         </div>
 
         <div class="header-right">
@@ -35,7 +35,10 @@
                 @foreach (var suggestion in Suggestions)
                 {
                     <button type="button" class="menu-item" disabled="@IsBusy"
-                            @onclick="() => SendFromMenuAsync(suggestion)">@suggestion</button>
+                            @onclick="() => SendFromMenuAsync(suggestion.Question)">
+                        <span class="menu-item-question">@suggestion.Question</span>
+                        <span class="menu-item-route">@suggestion.Route</span>
+                    </button>
                 }
             </div>
 
@@ -59,7 +62,7 @@
         @if (_turns.Count == 0)
         {
             <div class="empty">
-                <p>Şirket politikaları hakkında soru sorun. Ajan hangi aracı kullanacağına kendisi karar verir.</p>
+                <p>Şirket politikaları, ürünler, stok ve satışlar hakkında soru sorun.<br />Ajan hangi aracı kullanacağına kendisi karar verir.</p>
                 <p class="hint">Örnek sorular için soldaki menüyü açın.</p>
             </div>
         }

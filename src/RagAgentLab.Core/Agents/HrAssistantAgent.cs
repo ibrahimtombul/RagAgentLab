@@ -47,10 +47,12 @@ public sealed class HrAssistantAgent : IAgent
     // model is given, rather than being piled into this prompt.
     private const string SystemPrompt =
         """
-        You are the HR assistant of Kuzey Yazılım A.Ş.
+        You are the assistant of Kuzey Yazılım A.Ş. You answer questions about company
+        policy and about the company's online shop — products, stock and sales.
 
         Rules:
         1. Questions about company rules, limits, amounts or deadlines: call search_hr_policy.
+           Questions about products, stock or sales: call the matching shop tool.
            Copy the user's question into the tool exactly, character for character, in its
            original language. Never translate or rewrite it.
         2. Any arithmetic: call calculate. Never compute numbers yourself.
