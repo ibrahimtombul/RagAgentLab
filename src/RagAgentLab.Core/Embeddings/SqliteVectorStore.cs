@@ -109,6 +109,7 @@ public sealed class SqliteVectorStore : IVectorStore, IFingerprintedVectorStore,
     public async Task<IReadOnlyList<SearchResult>> SearchAsync(
         ReadOnlyMemory<float> queryVector,
         int topK,
+        ChunkOrigin? origin = null,
         CancellationToken cancellationToken = default)
     {
         if (topK <= 0)
@@ -119,6 +120,7 @@ public sealed class SqliteVectorStore : IVectorStore, IFingerprintedVectorStore,
         await EnsureInitialisedAsync(cancellationToken);
 
         var hits = _index.Values
+            .Where(record => origin is null || record.Chunk.Origin == origin)
             .Select(record => new SearchResult(record.Chunk, VectorMath.CosineSimilarity(queryVector, record.Vector)))
             .OrderByDescending(hit => hit.Score)
             .Take(topK)

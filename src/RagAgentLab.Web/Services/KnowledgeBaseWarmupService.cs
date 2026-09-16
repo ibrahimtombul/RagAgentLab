@@ -1,5 +1,6 @@
 using RagAgentLab.Embeddings;
 using RagAgentLab.Rag;
+using RagAgentLab.Shop;
 
 namespace RagAgentLab.Web.Services;
 
@@ -16,6 +17,7 @@ namespace RagAgentLab.Web.Services;
 public sealed class KnowledgeBaseWarmupService : BackgroundService
 {
     private readonly KnowledgeBaseIngestor _ingestor;
+    private readonly ProductCatalogIndexer _catalogIndexer;
     private readonly IVectorStore _vectorStore;
     private readonly KnowledgeBaseState _state;
     private readonly ILogger<KnowledgeBaseWarmupService> _logger;
@@ -23,11 +25,13 @@ public sealed class KnowledgeBaseWarmupService : BackgroundService
     /// <summary>Creates a new instance. Called by the DI container.</summary>
     public KnowledgeBaseWarmupService(
         KnowledgeBaseIngestor ingestor,
+        ProductCatalogIndexer catalogIndexer,
         IVectorStore vectorStore,
         KnowledgeBaseState state,
         ILogger<KnowledgeBaseWarmupService> logger)
     {
         _ingestor = ingestor;
+        _catalogIndexer = catalogIndexer;
         _vectorStore = vectorStore;
         _state = state;
         _logger = logger;
@@ -40,9 +44,14 @@ public sealed class KnowledgeBaseWarmupService : BackgroundService
         {
             var report = await _ingestor.IngestAsync(stoppingToken);
 
+            // Product descriptions are prose too, and live in the operational database rather
+            // than in the document folder.
+            var products = await _catalogIndexer.IndexAsync(stoppingToken);
+
             _logger.LogInformation(
-                "Knowledge base ready: {Documents} document(s), {Chunks} chunk(s) in {Seconds:F1}s.",
-                report.DocumentCount, report.ChunkCount, report.Duration.TotalSeconds);
+                "Knowledge base ready: {Documents} document(s), {Chunks} chunk(s), " +
+                "{Products} product description(s) indexed, in {Seconds:F1}s.",
+                report.DocumentCount, report.ChunkCount, products, report.Duration.TotalSeconds);
 
             // Counted from the store rather than from the report: with a persistent store the
             // corpus also holds notes added from the chat in earlier runs, which no document

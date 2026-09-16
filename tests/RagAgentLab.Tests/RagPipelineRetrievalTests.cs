@@ -99,6 +99,7 @@ public sealed class RagPipelineRetrievalTests
         public Task<IReadOnlyList<SearchResult>> SearchAsync(
             ReadOnlyMemory<float> queryVector,
             int topK,
+            ChunkOrigin? origin = null,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<SearchResult>>(_scores
                 .Take(topK)

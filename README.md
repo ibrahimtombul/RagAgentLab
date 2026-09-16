@@ -573,7 +573,7 @@ one is the wage-table mistake at a larger scale.
 |---|---|
 | Policies, FAQs, product descriptions, reviews, support threads, contracts | The vector store |
 | Stock, prices, orders, totals, anything aggregated | A query tool |
-| Semantic product search — *"yazlık, nefes alan, koyu renkli gömlek"* | The vector store, over the descriptions |
+| Semantic product search — *"bir şey ki içeceği sıcak tutsun"* | The vector store, over the descriptions |
 
 ### The model chooses the question; it does not write the SQL
 
@@ -610,6 +610,51 @@ empty — exactly what `get_minimum_wage` had done with the year. Both dates are
 default to the last thirty days ending today. The tool runs on a machine with a clock; the model
 does not, and asking it to discover the date through another call is asking for the one thing it
 cannot reliably do.
+
+### The same row, served two ways
+
+The split is not per table. It is per question — and the products table proves it, because one of
+its columns goes to the vector store while the rest go to SQL.
+
+A description is prose written for a person, and the questions asked of it are about meaning:
+*"sabah koyduğum içeceği öğlene kadar sıcak tutacak bir şey"* names neither the product nor any
+word in its row, and no `WHERE` clause will find it.
+[`ProductCatalogIndexer`](src/RagAgentLab.Core/Shop/ProductCatalogIndexer.cs) therefore embeds the
+description column into the same store the policies live in, and `search_products` searches it.
+
+Measured over the eight seeded products, with the queries deliberately sharing no word with the
+product name:
+
+| Query | Top match | Score |
+|---|---|---|
+| "Sabah koyduğum içeceği öğlene kadar sıcak tutacak bir şey" | **Çelik Termos** | 0.661 |
+| "Açık ofiste yanımdakini rahatsız etmeden yazmak" | **Ergonomik Klavye** | 0.614 |
+| "Sıcak havada terletmeyen bir üst" | **Pamuklu Tişört** | 0.574 |
+| "Uzun uçuşta çevredeki gürültüden kurtulmak" | **Kablosuz Kulaklık** | 0.570 |
+
+None of *termos*, *klavye*, *tişört* or *kulaklık* appears in the query that finds it — and the
+policy corpus was competing in the same search and lost every time.
+
+Chunks carry a [`ChunkOrigin`](src/RagAgentLab.Core/Embeddings/DocumentChunk.cs) so a catalogue
+search is restricted to catalogue entries; a shopper must not be answered with a paragraph of the
+leave policy, however close the two happen to sit. The filter runs inside the store rather than
+after it, so asking for three matches returns three.
+
+Three things had to be fixed to get that table, and each is worth more than the feature:
+
+**A relevance floor belongs to the content, not just to the model.** The 0.55 tuned on the policy
+corpus silently rejected good product matches: a customer's phrasing shares neither vocabulary nor
+length with a two-sentence description, and correct matches land at 0.57–0.66 against 0.63–0.73 for
+policy questions. `Rag:ProductMinimumSimilarity` is a separate, lower floor.
+
+**A list is not a ranking unless you say so.** Handed three candidates as a flat list, the model
+answered with the second one. The tool now labels the closest match and marks the rest as more
+distant alternatives.
+
+**`CREATE TABLE IF NOT EXISTS` is not a migration.** Adding the description column left every
+existing database file on the old shape, and the first query failed on a missing column. The shop
+database now carries a schema version in `PRAGMA user_version` and rebuilds itself when it does not
+match — sample data is free to throw away, and silently serving the old shape is not.
 
 ### Pipeline or agent?
 

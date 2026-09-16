@@ -30,6 +30,7 @@ public sealed class QdrantVectorStore : IVectorStore, IDisposable
     private const string DocumentTitleField = "documentTitle";
     private const string ChunkIndexField = "chunkIndex";
     private const string TextField = "text";
+    private const string OriginField = "origin";
 
     private readonly QdrantClient _client;
     private readonly QdrantOptions _options;
@@ -67,6 +68,7 @@ public sealed class QdrantVectorStore : IVectorStore, IDisposable
                 [DocumentTitleField] = record.Chunk.DocumentTitle,
                 [ChunkIndexField] = record.Chunk.ChunkIndex,
                 [TextField] = record.Chunk.Text,
+                [OriginField] = record.Chunk.Origin.ToString(),
             },
         }).ToList();
 
@@ -78,6 +80,7 @@ public sealed class QdrantVectorStore : IVectorStore, IDisposable
     public async Task<IReadOnlyList<SearchResult>> SearchAsync(
         ReadOnlyMemory<float> queryVector,
         int topK,
+        ChunkOrigin? origin = null,
         CancellationToken cancellationToken = default)
     {
         if (topK <= 0)
@@ -87,9 +90,16 @@ public sealed class QdrantVectorStore : IVectorStore, IDisposable
 
         await EnsureCollectionAsync(cancellationToken);
 
+        // Filtered server-side rather than after the fact: asking for the nearest three and then
+        // discarding most of them would quietly return fewer results than requested.
+        var filter = origin is null
+            ? null
+            : (Filter)Qdrant.Client.Grpc.Conditions.MatchKeyword(OriginField, origin.Value.ToString());
+
         var points = await _client.QueryAsync(
             _options.CollectionName,
             query: queryVector.ToArray(),
+            filter: filter,
             limit: (ulong)topK,
             payloadSelector: true,
             cancellationToken: cancellationToken);
@@ -100,7 +110,13 @@ public sealed class QdrantVectorStore : IVectorStore, IDisposable
                 SourceName: point.Payload[SourceNameField].StringValue,
                 DocumentTitle: point.Payload[DocumentTitleField].StringValue,
                 ChunkIndex: (int)point.Payload[ChunkIndexField].IntegerValue,
-                Text: point.Payload[TextField].StringValue),
+                Text: point.Payload[TextField].StringValue)
+            {
+                Origin = point.Payload.TryGetValue(OriginField, out var value) &&
+                         Enum.TryParse<ChunkOrigin>(value.StringValue, out var parsed)
+                    ? parsed
+                    : ChunkOrigin.File,
+            },
             point.Score)).ToArray();
     }
 

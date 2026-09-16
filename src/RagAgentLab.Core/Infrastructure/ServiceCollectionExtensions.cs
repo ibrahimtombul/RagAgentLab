@@ -70,6 +70,7 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<ShopDatabase>();
         services.AddSingleton<ShopQueries>();
+        services.AddSingleton<ProductCatalogIndexer>();
 
         services.AddSingleton<IEmbeddingService, SemanticKernelEmbeddingService>();
         AddVectorStore(services, configuration);

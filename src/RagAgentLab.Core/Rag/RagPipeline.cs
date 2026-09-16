@@ -70,6 +70,8 @@ public sealed class RagPipeline : IRagPipeline
     public async Task<IReadOnlyList<SearchResult>> RetrieveAsync(
         string question,
         int? topK = null,
+        ChunkOrigin? origin = null,
+        double? minimumSimilarity = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(question);
@@ -77,13 +79,15 @@ public sealed class RagPipeline : IRagPipeline
         var stopwatch = Stopwatch.StartNew();
 
         var queryVector = await _embeddingService.EmbedQueryAsync(question, cancellationToken);
-        var found = await _vectorStore.SearchAsync(queryVector, topK ?? _ragOptions.TopK, cancellationToken);
+        var found = await _vectorStore.SearchAsync(
+            queryVector, topK ?? _ragOptions.TopK, origin, cancellationToken);
 
         // Nearest is not the same as relevant. Search always returns the closest chunks it has,
         // so a question the corpus cannot answer still comes back with three passages; the floor
         // is what turns "closest" into "close enough".
-        var relevant = _ragOptions.MinimumSimilarity > 0
-            ? found.Where(hit => hit.Score >= _ragOptions.MinimumSimilarity).ToArray()
+        var floor = minimumSimilarity ?? _ragOptions.MinimumSimilarity;
+        var relevant = floor > 0
+            ? found.Where(hit => hit.Score >= floor).ToArray()
             : found;
 
         stopwatch.Stop();
@@ -91,7 +95,7 @@ public sealed class RagPipeline : IRagPipeline
         var discarded = found.Count - relevant.Count;
         _logger.LogDebug(
             "Retrieved {Count} chunk(s) for '{Question}', {Discarded} below the {Threshold} floor.",
-            relevant.Count, question, discarded, _ragOptions.MinimumSimilarity);
+            relevant.Count, question, discarded, floor);
 
         RetrievalTrace.Report(new RetrievalRecord(question, relevant, discarded, stopwatch.Elapsed));
 

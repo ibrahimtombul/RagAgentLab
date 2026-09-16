@@ -36,6 +36,18 @@ public sealed class RagOptions
     /// </summary>
     public double MinimumSimilarity { get; set; } = 0.55;
 
+    /// <summary>
+    /// The relevance floor used when searching product descriptions.
+    /// <para>
+    /// Lower than <see cref="MinimumSimilarity"/> because the floor belongs to the content as
+    /// much as to the model. A policy question and a paragraph of policy prose share vocabulary
+    /// and length; a customer saying "something that keeps a drink warm" shares neither with a
+    /// two-sentence product description, and correct matches were measured at 0.57-0.66 against
+    /// 0.63-0.73 for the policy corpus. Reusing one number rejected good matches in silence.
+    /// </para>
+    /// </summary>
+    public double ProductMinimumSimilarity { get; set; } = 0.45;
+
     /// <summary>How many chunks are embedded per request to the model server.</summary>
     public int EmbeddingBatchSize { get; set; } = 16;
 

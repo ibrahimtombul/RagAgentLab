@@ -1,6 +1,7 @@
 using RagAgentLab.Agents;
 using RagAgentLab.Infrastructure;
 using RagAgentLab.Rag;
+using RagAgentLab.Shop;
 
 namespace RagAgentLab.Demos;
 
@@ -28,12 +29,14 @@ public sealed class AgentDemo
     ];
 
     private readonly KnowledgeBaseIngestor _ingestor;
+    private readonly ProductCatalogIndexer _catalogIndexer;
     private readonly IAgent _agent;
 
     /// <summary>Creates a new instance. Called by the DI container.</summary>
-    public AgentDemo(KnowledgeBaseIngestor ingestor, IAgent agent)
+    public AgentDemo(KnowledgeBaseIngestor ingestor, ProductCatalogIndexer catalogIndexer, IAgent agent)
     {
         _ingestor = ingestor;
+        _catalogIndexer = catalogIndexer;
         _agent = agent;
     }
 
@@ -47,7 +50,10 @@ public sealed class AgentDemo
     {
         ConsoleUi.Section("Stage 3 - Knowledge base ingestion");
         var report = await _ingestor.IngestAsync(cancellationToken);
-        ConsoleUi.Success($"{report.DocumentCount} document(s) -> {report.ChunkCount} chunk(s) indexed.");
+        var products = await _catalogIndexer.IndexAsync(cancellationToken);
+        ConsoleUi.Success(
+            $"{report.DocumentCount} document(s) -> {report.ChunkCount} chunk(s) indexed, " +
+            $"{products} product description(s).");
 
         ConsoleUi.Section("Stage 3 - Agent with tools");
         ConsoleUi.Info("Tools available to the model: search_hr_policy, calculate, get_today, add_business_days");

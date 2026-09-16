@@ -14,11 +14,20 @@ public interface IRagPipeline
     /// <summary>Finds the chunks most relevant to a question.</summary>
     /// <param name="question">Natural-language question.</param>
     /// <param name="topK">How many chunks to return; falls back to the configured value when null.</param>
+    /// <param name="origin">When given, only chunks of that origin are searched.</param>
+    /// <param name="minimumSimilarity">
+    /// Overrides the configured relevance floor. Needed because the floor is a property of the
+    /// content as much as of the model: short product descriptions score lower against a
+    /// customer's phrasing than a paragraph of policy prose does against a policy question, and
+    /// one number tuned on the second quietly rejects good matches from the first.
+    /// </param>
     /// <param name="cancellationToken">Token used to cancel the call.</param>
     /// <returns>Matching chunks, best match first.</returns>
     Task<IReadOnlyList<SearchResult>> RetrieveAsync(
         string question,
         int? topK = null,
+        ChunkOrigin? origin = null,
+        double? minimumSimilarity = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Retrieves context and asks the model to answer strictly from it.</summary>

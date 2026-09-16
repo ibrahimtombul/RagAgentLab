@@ -18,19 +18,40 @@ namespace RagAgentLab.Shop;
 /// The data is generated from a formula rather than at random, so every run and every test sees
 /// the same numbers.
 /// </para>
+/// <para>
+/// One column is the exception to all of that. A product's description is prose, and prose is
+/// what the vector store is for — so the same row is served two ways: its numbers through SQL,
+/// its description through retrieval. The split is per question, not per table.
+/// </para>
 /// </summary>
 public sealed class ShopDatabase
 {
-    private static readonly (string Code, string Name, string Category, decimal Price)[] Products =
+    private static readonly (string Code, string Name, string Category, decimal Price, string Description)[] Products =
     [
-        ("ELK-001", "Kablosuz Kulaklık", "Elektronik", 2499m),
-        ("ELK-002", "Bluetooth Hoparlör", "Elektronik", 1299m),
-        ("ELK-003", "Taşınabilir Şarj Cihazı", "Elektronik", 749m),
-        ("EVA-001", "Çelik Termos", "Ev & Yaşam", 459m),
-        ("EVA-002", "Seramik Kupa Seti", "Ev & Yaşam", 329m),
-        ("GIY-001", "Pamuklu Tişört", "Giyim", 399m),
-        ("GIY-002", "Koşu Ayakkabısı", "Giyim", 1899m),
-        ("OFS-001", "Ergonomik Klavye", "Ofis", 1149m),
+        ("ELK-001", "Kablosuz Kulaklık", "Elektronik", 2499m,
+            "Uzun yolculuklarda ve kalabalık ofiste çevredeki gürültüyü bastırır. Tek şarjla gün boyu " +
+            "dayanır, yumuşak yastıkları saatlerce takıldığında bile kulağı acıtmaz."),
+        ("ELK-002", "Bluetooth Hoparlör", "Elektronik", 1299m,
+            "Bahçede, piknikte ve banyoda gönül rahatlığıyla kullanılır; sıçrayan sıvıya karşı korumalı " +
+            "gövdesi vardır. Küçük boyutuna göre şaşırtıcı derecede dolgun bas verir."),
+        ("ELK-003", "Taşınabilir Şarj Cihazı", "Elektronik", 749m,
+            "Telefonu iki kez tam doldurur ve çantada neredeyse hiç yer kaplamaz. Uçuşlarda kabin " +
+            "bagajıyla taşınabilecek kapasitededir."),
+        ("EVA-001", "Çelik Termos", "Ev & Yaşam", 459m,
+            "Sabah doldurulan içecek öğleden sonraya kadar sıcaklığını korur. Çift cidarlı gövdesi ve " +
+            "sızdırmaz kapağı sayesinde çantada devrilse bile akıtmaz."),
+        ("EVA-002", "Seramik Kupa Seti", "Ev & Yaşam", 329m,
+            "Günlük kahvaltı sofrası için dört parçalık takım. Bulaşık makinesinde yıkanabilir, " +
+            "desenleri zamanla solmaz."),
+        ("GIY-001", "Pamuklu Tişört", "Giyim", 399m,
+            "Sıcak havalarda nefes alan doğal kumaşı teri hapsetmez. Koyu tonları defalarca " +
+            "yıkandıktan sonra bile rengini korur."),
+        ("GIY-002", "Koşu Ayakkabısı", "Giyim", 1899m,
+            "Asfaltta uzun mesafe için tasarlanmış yastıklama. Hafif tabanı sayesinde ayak bileğini " +
+            "yormaz, uzun antrenmanlarda ağırlık hissettirmez."),
+        ("OFS-001", "Ergonomik Klavye", "Ofis", 1149m,
+            "Gün boyu yazı yazanlar için bilek desteği sunar. Tuşları sessizdir, açık ofiste yanındaki " +
+            "kişiyi rahatsız etmez."),
     ];
 
     private static readonly (string Code, string City)[] Warehouses =
@@ -39,6 +60,14 @@ public sealed class ShopDatabase
         ("DEP-ANK", "Ankara"),
         ("DEP-IZM", "İzmir"),
     ];
+
+    /// <summary>
+    /// Bumped whenever the schema or the seed changes. A file written by an older version is
+    /// rebuilt rather than patched: this is generated sample data, so throwing it away costs
+    /// nothing, and the alternative — CREATE TABLE IF NOT EXISTS over a file that already has the
+    /// old shape — silently leaves the old columns in place and fails at the first query.
+    /// </summary>
+    private const long SchemaVersion = 2;
 
     /// <summary>Sales are seeded for this many days, ending the day before <see cref="SeedEnd"/>.</summary>
     private const int SeedDays = 120;
@@ -91,13 +120,33 @@ public sealed class ShopDatabase
             await using var connection = new SqliteConnection(_connectionString);
             await connection.OpenAsync(cancellationToken);
 
+            var existingVersion = await ScalarAsync(connection, "PRAGMA user_version;", cancellationToken);
+            if (existingVersion != SchemaVersion)
+            {
+                if (existingVersion != 0)
+                {
+                    _logger.LogInformation(
+                        "Shop database is at schema {Old}, rebuilding for schema {New}.",
+                        existingVersion, SchemaVersion);
+                }
+
+                await ExecuteAsync(connection,
+                    """
+                    DROP TABLE IF EXISTS sales;
+                    DROP TABLE IF EXISTS stock;
+                    DROP TABLE IF EXISTS warehouses;
+                    DROP TABLE IF EXISTS products;
+                    """, cancellationToken);
+            }
+
             await ExecuteAsync(connection,
                 """
                 CREATE TABLE IF NOT EXISTS products (
-                    code       TEXT PRIMARY KEY,
-                    name       TEXT NOT NULL,
-                    category   TEXT NOT NULL,
-                    unit_price REAL NOT NULL
+                    code        TEXT PRIMARY KEY,
+                    name        TEXT NOT NULL,
+                    category    TEXT NOT NULL,
+                    unit_price  REAL NOT NULL,
+                    description TEXT NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS warehouses (
                     code TEXT PRIMARY KEY,
@@ -126,6 +175,9 @@ public sealed class ShopDatabase
             }
 
             await SeedAsync(connection, cancellationToken);
+
+            // PRAGMA does not take parameters, and the value is a constant rather than input.
+            await ExecuteAsync(connection, $"PRAGMA user_version = {SchemaVersion};", cancellationToken);
             _ready = true;
 
             _logger.LogInformation(
@@ -142,11 +194,13 @@ public sealed class ShopDatabase
     {
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
-        foreach (var (code, name, category, price) in Products)
+        foreach (var (code, name, category, price, description) in Products)
         {
             await ExecuteAsync(connection,
-                "INSERT INTO products (code, name, category, unit_price) VALUES ($c, $n, $k, $p);",
-                cancellationToken, ("$c", code), ("$n", name), ("$k", category), ("$p", (double)price));
+                "INSERT INTO products (code, name, category, unit_price, description) " +
+                "VALUES ($c, $n, $k, $p, $d);",
+                cancellationToken,
+                ("$c", code), ("$n", name), ("$k", category), ("$p", (double)price), ("$d", description));
         }
 
         foreach (var (code, city) in Warehouses)

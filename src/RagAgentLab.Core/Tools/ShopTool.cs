@@ -1,6 +1,10 @@
 using System.ComponentModel;
 using System.Globalization;
+using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
+using RagAgentLab.Configuration;
+using RagAgentLab.Embeddings;
+using RagAgentLab.Rag;
 using RagAgentLab.Shop;
 
 namespace RagAgentLab.Tools;
@@ -26,9 +30,59 @@ public sealed class ShopTool
     private const string DateFormat = "yyyy-MM-dd";
 
     private readonly ShopQueries _queries;
+    private readonly IRagPipeline _ragPipeline;
+    private readonly RagOptions _ragOptions;
 
     /// <summary>Creates a new instance. Resolved from DI by Semantic Kernel.</summary>
-    public ShopTool(ShopQueries queries) => _queries = queries;
+    public ShopTool(ShopQueries queries, IRagPipeline ragPipeline, IOptions<RagOptions> ragOptions)
+    {
+        _queries = queries;
+        _ragPipeline = ragPipeline;
+        _ragOptions = ragOptions.Value;
+    }
+
+    /// <summary>Finds products by what they are like, rather than by name or code.</summary>
+    /// <param name="need">What the customer is looking for, in their own words.</param>
+    /// <param name="cancellationToken">Token used to cancel the call.</param>
+    [KernelFunction("search_products")]
+    [Description("Finds products by describing what they are for or what they are like, rather " +
+                 "than by name or code. Use this when the customer says what they need instead of " +
+                 "which product they want — 'something that keeps a drink warm', 'comfortable in " +
+                 "hot weather'. For a known product code or an exact name, use get_stock instead.")]
+    public async Task<string> SearchProductsAsync(
+        [Description("What the customer is looking for, in their own words.")] string need,
+        CancellationToken cancellationToken = default)
+    {
+        // Restricted to catalogue chunks: a shopper must not be answered with a paragraph of the
+        // leave policy, however close the two happen to sit in the vector space.
+        var hits = await _ragPipeline.RetrieveAsync(
+            need,
+            topK: 3,
+            origin: ChunkOrigin.Product,
+            minimumSimilarity: _ragOptions.ProductMinimumSimilarity,
+            cancellationToken: cancellationToken);
+
+        if (hits.Count == 0)
+        {
+            return "Bu tarife uyan bir ürün bulunamadı.";
+        }
+
+        // The ranking is spelled out rather than left implicit in the order. Handed three
+        // candidates as a flat list, the model was observed answering with the second one; saying
+        // which is the closest match costs a few words and removes the ambiguity.
+        var best = hits[0];
+        var answer = $"EN YAKIN EŞLEŞME: {best.Chunk.DocumentTitle} ({best.Chunk.SourceName}): " +
+                     $"{best.Chunk.Text}";
+
+        if (hits.Count > 1)
+        {
+            var others = hits.Skip(1).Select(hit => $"{hit.Chunk.DocumentTitle} ({hit.Chunk.SourceName})");
+            answer += " || DAHA UZAK ALTERNATİFLER (yalnızca en yakın eşleşme uygun değilse öner): " +
+                      string.Join(", ", others);
+        }
+
+        return answer;
+    }
 
     /// <summary>Returns current stock for one product.</summary>
     /// <param name="product">Product code or part of the product name.</param>

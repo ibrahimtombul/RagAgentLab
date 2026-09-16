@@ -1,5 +1,7 @@
+using RagAgentLab.Embeddings;
 using RagAgentLab.Infrastructure;
 using RagAgentLab.Rag;
+using RagAgentLab.Shop;
 
 namespace RagAgentLab.Demos;
 
@@ -15,12 +17,17 @@ namespace RagAgentLab.Demos;
 public sealed class RetrievalInspectionDemo
 {
     private readonly KnowledgeBaseIngestor _ingestor;
+    private readonly ProductCatalogIndexer _catalogIndexer;
     private readonly IRagPipeline _ragPipeline;
 
     /// <summary>Creates a new instance. Called by the DI container.</summary>
-    public RetrievalInspectionDemo(KnowledgeBaseIngestor ingestor, IRagPipeline ragPipeline)
+    public RetrievalInspectionDemo(
+        KnowledgeBaseIngestor ingestor,
+        ProductCatalogIndexer catalogIndexer,
+        IRagPipeline ragPipeline)
     {
         _ingestor = ingestor;
+        _catalogIndexer = catalogIndexer;
         _ragPipeline = ragPipeline;
     }
 
@@ -30,7 +37,10 @@ public sealed class RetrievalInspectionDemo
     public async Task RunAsync(IReadOnlyList<string> questions, CancellationToken cancellationToken = default)
     {
         var report = await _ingestor.IngestAsync(cancellationToken);
-        ConsoleUi.Success($"{report.DocumentCount} document(s) -> {report.ChunkCount} chunk(s) indexed.");
+        var products = await _catalogIndexer.IndexAsync(cancellationToken);
+        ConsoleUi.Success(
+            $"{report.DocumentCount} document(s) -> {report.ChunkCount} chunk(s), " +
+            $"{products} product description(s) indexed.");
 
         foreach (var question in questions)
         {
@@ -41,8 +51,11 @@ public sealed class RetrievalInspectionDemo
 
             foreach (var hit in hits)
             {
-                ConsoleUi.Info(
-                    $"  {hit.Score:F3}  {hit.Chunk.SourceName} (chunk {hit.Chunk.ChunkIndex})");
+                var label = hit.Chunk.Origin == ChunkOrigin.Product
+                    ? $"{hit.Chunk.SourceName} — {hit.Chunk.DocumentTitle}"
+                    : $"{hit.Chunk.SourceName} (chunk {hit.Chunk.ChunkIndex})";
+
+                ConsoleUi.Info($"  {hit.Score:F3}  [{hit.Chunk.Origin}] {label}");
             }
         }
     }

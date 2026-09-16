@@ -46,6 +46,9 @@ public enum ChunkOrigin
 
     /// <summary>Added at runtime, for example a note typed into the chat.</summary>
     Note = 1,
+
+    /// <summary>A product description indexed from the operational database.</summary>
+    Product = 2,
 }
 
 /// <summary>A chunk together with its embedding vector, as held by the vector store.</summary>
